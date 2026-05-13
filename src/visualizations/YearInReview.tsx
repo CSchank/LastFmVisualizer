@@ -4,7 +4,7 @@ import type { VizProps } from './registry'
 import { splitArtists, buildRawArtistSet } from '../utils/artists'
 import { getArtistImage } from '../api/artistImages'
 import { getDb } from '../db'
-import { downloadYearRecapInfographicPng, imageUrlToDataUrl } from '../utils/yearRecapInfographic'
+import { buildSvg, downloadYearRecapInfographicPng, imageUrlToDataUrl } from '../utils/yearRecapInfographic'
 
 function topN(values: string[], n: number): { name: string; plays: number }[] {
   const counts = new Map<string, number>()
@@ -91,13 +91,36 @@ export function YearInReview({ scrobbles, splitCollabs }: VizProps) {
     return { rows, topArtists, topTracks, topAlbums, activeDays, uniqueArtists, uniqueAlbums, uniqueTracks, summaryText }
   }, [scrobbles, selectedYear, splitCollabs, rawArtistSet])
 
+  const previewSvg = useMemo(() => {
+    if (!recap) return null
+    return buildSvg(
+      {
+        year: selectedYear,
+        totalPlays: recap.rows.length,
+        activeDays: recap.activeDays,
+        uniqueArtists: recap.uniqueArtists,
+        uniqueAlbums: recap.uniqueAlbums,
+        uniqueTracks: recap.uniqueTracks,
+        topArtists: recap.topArtists.slice(0, 5).map(a => ({
+          ...a,
+          imageDataUrl: artistImageUrls.get(a.name) ?? null,
+        })),
+        topTracks: recap.topTracks.slice(0, 5),
+        topAlbum: recap.topAlbums[0]
+          ? { name: recap.topAlbums[0].name, plays: recap.topAlbums[0].plays, imageDataUrl: recap.topAlbums[0].imageUrl ?? null }
+          : undefined,
+      },
+      true,
+    )
+  }, [recap, selectedYear, artistImageUrls])
+
   useEffect(() => {
     if (!recap) return
     const apiKey = getApiKey()
     const username = getUsername()
     if (!apiKey || !username) return
     const db = getDb(username)
-    const topArtistNames = recap.topArtists.slice(0, 3).map(a => a.name)
+    const topArtistNames = recap.topArtists.slice(0, 5).map(a => a.name)
     const missing = topArtistNames.filter(name => !artistImageUrls.has(name))
     if (missing.length === 0) return
 
@@ -116,7 +139,7 @@ export function YearInReview({ scrobbles, splitCollabs }: VizProps) {
     setExportStatus(null)
     setIsDownloading(true)
     try {
-      const topArtists = recap.topArtists.slice(0, 3)
+      const topArtists = recap.topArtists.slice(0, 5)
       const artistImages = await Promise.all(
         topArtists.map(async artist => {
           const url = artistImageUrls.get(artist.name)
@@ -135,6 +158,7 @@ export function YearInReview({ scrobbles, splitCollabs }: VizProps) {
         uniqueAlbums: recap.uniqueAlbums,
         uniqueTracks: recap.uniqueTracks,
         topArtists: artistImages,
+        topTracks: recap.topTracks.slice(0, 5).map(t => ({ name: t.name, plays: t.plays })),
         topAlbum: topAlbum ? { name: topAlbum.name, plays: topAlbum.plays, imageDataUrl: topAlbumImageDataUrl } : undefined,
       })
 
@@ -205,6 +229,16 @@ export function YearInReview({ scrobbles, splitCollabs }: VizProps) {
             <Stat label="Tracks" value={recap.uniqueTracks.toLocaleString()} />
             <Stat label="Top Artist" value={recap.topArtists[0]?.name ?? '—'} sub={recap.topArtists[0] ? `${recap.topArtists[0].plays.toLocaleString()} plays` : undefined} />
           </div>
+
+          {previewSvg && (
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Infographic Preview</span>
+                <span className="text-xs text-gray-400">Downloads as 2× PNG</span>
+              </div>
+              <div dangerouslySetInnerHTML={{ __html: previewSvg }} />
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <TopList title="Top Artists" rows={recap.topArtists.slice(0, 10)} />

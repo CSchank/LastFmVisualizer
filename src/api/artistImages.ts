@@ -1,31 +1,37 @@
 import type { LastFmDB } from '../db'
 
-const BASE = 'https://ws.audioscrobbler.com/2.0/'
+const LASTFM_BASE = 'https://ws.audioscrobbler.com/2.0/'
+const WIKI_BASE = 'https://en.wikipedia.org/api/rest_v1/page/summary/'
 
-// In-memory cache to avoid redundant DB reads within a session
 const memCache = new Map<string, string | null>()
 const inflight = new Map<string, Promise<string | null>>()
 
-async function fetchFromApi(artist: string, apiKey: string): Promise<string | null> {
-  if (inflight.has(artist)) return inflight.get(artist)!
-
-  const url = new URL(BASE)
+async function fetchFromLastFm(artist: string, apiKey: string): Promise<string | null> {
+  const url = new URL(LASTFM_BASE)
   url.searchParams.set('method', 'artist.getInfo')
   url.searchParams.set('artist', artist)
   url.searchParams.set('api_key', apiKey)
   url.searchParams.set('format', 'json')
 
-  const p = fetch(url.toString())
-    .then(r => r.json())
-    .then(data => {
-      const images: { '#text': string; size: string }[] = data.artist?.image ?? []
-      const img = images.find(i => i.size === 'extralarge') ?? images.find(i => i.size === 'large')
-      return img?.['#text'] || null
-    })
-    .catch(() => null)
+  const data = await fetch(url.toString()).then(r => r.json())
+  const images: { '#text': string; size: string }[] = data.artist?.image ?? []
+  const img = images.find(i => i.size === 'extralarge') ?? images.find(i => i.size === 'large')
+  return img?.['#text'] || null
+}
 
-  inflight.set(artist, p)
-  return p
+async function fetchFromWikipedia(artist: string): Promise<string | null> {
+  const response = await fetch(WIKI_BASE + encodeURIComponent(artist))
+  if (!response.ok) return null
+  const data = await response.json()
+  // Reject disambiguation pages — they have no meaningful thumbnail for the artist
+  if (data.type === 'disambiguation') return null
+  return (data.thumbnail?.source as string | undefined) ?? null
+}
+
+async function fetchImage(artist: string, apiKey: string): Promise<string | null> {
+  const lastfm = await fetchFromLastFm(artist, apiKey).catch(() => null)
+  if (lastfm) return lastfm
+  return fetchFromWikipedia(artist).catch(() => null)
 }
 
 export async function getArtistImage(
@@ -41,7 +47,10 @@ export async function getArtistImage(
     return stored.imageUrl
   }
 
-  const imageUrl = await fetchFromApi(artist, apiKey)
+  if (!inflight.has(artist)) {
+    inflight.set(artist, fetchImage(artist, apiKey).finally(() => inflight.delete(artist)))
+  }
+  const imageUrl = await inflight.get(artist)!
   memCache.set(artist, imageUrl)
   await db.artistImages.put({ artist, imageUrl })
   return imageUrl
@@ -56,13 +65,17 @@ export async function backfillArtistImages(
   signal: AbortSignal,
 ): Promise<number> {
   const allArtists = (await db.scrobbles.orderBy('artist').uniqueKeys()) as string[]
-  const fetched = new Set((await db.artistImages.toCollection().primaryKeys()) as string[])
-  const missing = allArtists.filter(a => !fetched.has(a))
+  const withImage = new Set(
+    (await db.artistImages.toArray())
+      .filter(r => r.imageUrl !== null)
+      .map(r => r.artist),
+  )
+  const missing = allArtists.filter(a => !withImage.has(a))
 
   let done = 0
   for (const artist of missing) {
     if (signal.aborted) break
-    const imageUrl = await fetchFromApi(artist, apiKey)
+    const imageUrl = await fetchImage(artist, apiKey)
     memCache.set(artist, imageUrl)
     await db.artistImages.put({ artist, imageUrl })
     done++
