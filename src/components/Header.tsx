@@ -2,32 +2,31 @@ import { useEffect, useRef, useState } from 'react'
 import { LastFmApi } from '../api/lastfm'
 import { getDb, exportToJSON, importFromJSON } from '../db'
 import { syncScrobbles, type SyncProgress } from '../sync/sync'
-import { backfillArtistImages, type BackfillProgress, type ImageFetchLogEntry } from '../api/artistImages'
-import { CheckSolidIcon, ChevronDownIcon, CloseIcon, PlusIcon } from './icons/CommonIcons'
+import type { ArtistImageBackfill } from '../hooks/useArtistImageBackfill'
+import { CheckSolidIcon, ChevronDownIcon, CloseIcon, PlusIcon, SettingsGearIcon } from './icons/CommonIcons'
 
 interface Props {
   apiKey: string
   accounts: string[]
   activeAccount: string
   totalScrobbles: number
+  autoFetchImages: boolean
+  backfill: ArtistImageBackfill
   onSyncComplete: () => void
   onSwitchAccount: (username: string) => void
   onAddAccount: () => void
   onRemoveAccount: (username: string) => void
+  onOpenSettings: () => void
 }
 
 export function Header({
-  apiKey, accounts, activeAccount, totalScrobbles,
-  onSyncComplete, onSwitchAccount, onAddAccount, onRemoveAccount,
+  apiKey, accounts, activeAccount, totalScrobbles, autoFetchImages, backfill,
+  onSyncComplete, onSwitchAccount, onAddAccount, onRemoveAccount, onOpenSettings,
 }: Props) {
   const [progress, setProgress] = useState<SyncProgress | null>(null)
   const [isSyncing, setIsSyncing] = useState(false)
   const [statusMsg, setStatusMsg] = useState<{ text: string; ok: boolean } | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [backfillProgress, setBackfillProgress] = useState<BackfillProgress | null>(null)
-  const [isBackfilling, setIsBackfilling] = useState(false)
-  const [backfillLog, setBackfillLog] = useState<ImageFetchLogEntry[] | null>(null)
-  const backfillAbortRef = useRef<AbortController | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -48,60 +47,15 @@ export function Header({
     setStatusMsg(null)
     const api = new LastFmApi(apiKey, activeAccount)
     const db = getDb(activeAccount)
+    let synced = false
     try {
       await syncScrobbles(api, db, p => setProgress(p))
       onSyncComplete()
+      synced = true
     } catch { /* progress already has error */ } finally {
       setIsSyncing(false)
     }
-  }
-
-  const handleDownloadLog = () => {
-    if (!backfillLog) return
-    const lines = ['artist,source,url', ...backfillLog.map(e =>
-      `"${e.artist.replace(/"/g, '""')}",${e.source},"${e.url ?? ''}"`
-    )]
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `artist-images-${activeAccount}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const handleBackfill = async () => {
-    if (isBackfilling) {
-      backfillAbortRef.current?.abort()
-      return
-    }
-    const controller = new AbortController()
-    backfillAbortRef.current = controller
-    setIsBackfilling(true)
-    setBackfillProgress(null)
-    try {
-      const { found, log } = await backfillArtistImages(
-        getDb(activeAccount),
-        apiKey,
-        p => setBackfillProgress(p),
-        controller.signal,
-      )
-      const bySource = log.reduce<Record<string, number>>((acc, e) => {
-        acc[e.source] = (acc[e.source] ?? 0) + 1
-        return acc
-      }, {})
-      const parts = (['theaudiodb', 'lastfm', 'wikipedia'] as const)
-        .filter(s => bySource[s])
-        .map(s => `${bySource[s]} ${s}`)
-      const summary = parts.length ? ` (${parts.join(' · ')})` : ''
-      setBackfillLog(log)
-      setStatusMsg({ text: `Found ${found} images${summary}, ${(bySource.none ?? 0)} not found.`, ok: true })
-    } catch {
-      setStatusMsg({ text: 'Artist image fetch failed.', ok: false })
-    } finally {
-      setIsBackfilling(false)
-      setBackfillProgress(null)
-    }
+    if (synced && autoFetchImages) backfill.run(true)
   }
 
   const handleExport = async () => {
@@ -200,16 +154,17 @@ export function Header({
             />
           </div>
         )}
-        {isBackfilling && backfillProgress && (
+        {backfill.isBackfilling && backfill.progress && (
           <div className="mt-1 flex items-center gap-2">
+            <span className="text-xs text-gray-400">Artist images</span>
             <div className="h-1 bg-gray-100 rounded-full overflow-hidden w-48">
               <div
                 className="h-full bg-purple-400 rounded-full transition-all"
-                style={{ width: `${Math.min(100, (backfillProgress.done / backfillProgress.total) * 100)}%` }}
+                style={{ width: `${Math.min(100, (backfill.progress.done / backfill.progress.total) * 100)}%` }}
               />
             </div>
             <span className="text-xs text-gray-400">
-              {backfillProgress.done} / {backfillProgress.total}
+              {backfill.progress.done} / {backfill.progress.total}
             </span>
           </div>
         )}
@@ -229,22 +184,10 @@ export function Header({
           Import
         </button>
         <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
-        <button onClick={handleBackfill} disabled={isSyncing}
-          className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-            isBackfilling
-              ? 'bg-purple-100 hover:bg-purple-200 text-purple-700'
-              : 'bg-gray-100 hover:bg-gray-200 disabled:opacity-40 text-gray-700'
-          }`}>
-          {isBackfilling
-            ? `Stop (${backfillProgress?.done ?? 0}/${backfillProgress?.total ?? '?'})`
-            : 'Fetch Artist Images'}
+        <button onClick={onOpenSettings} title="Settings"
+          className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-colors">
+          <SettingsGearIcon className="w-4 h-4" />
         </button>
-        {backfillLog && !isBackfilling && (
-          <button onClick={handleDownloadLog}
-            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors">
-            Download Log
-          </button>
-        )}
       </div>
     </header>
   )

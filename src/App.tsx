@@ -4,9 +4,12 @@ import { useApiKey } from './hooks/useApiKey'
 import { useAccounts } from './hooks/useAccounts'
 import { useScrobbles } from './hooks/useScrobbles'
 import { usePinnedViews } from './hooks/usePinnedViews'
+import { useSettings } from './hooks/useSettings'
+import { useArtistImageBackfill } from './hooks/useArtistImageBackfill'
 import { SetupFlow } from './components/SetupFlow'
 import { Header } from './components/Header'
 import { Sidebar } from './components/Sidebar'
+import { SettingsModal } from './components/SettingsModal'
 import { VISUALIZATIONS } from './visualizations/registry'
 
 const ALL_VIEW_IDS = VISUALIZATIONS.map(v => v.id)
@@ -14,10 +17,14 @@ const ALL_VIEW_IDS = VISUALIZATIONS.map(v => v.id)
 export default function App() {
   const { apiKey, save: saveApiKey } = useApiKey()
   const { accounts, activeAccount, addAccount, switchAccount, removeAccount } = useAccounts()
+  const { settings, update: updateSettings } = useSettings()
+  const backfill = useArtistImageBackfill(activeAccount ?? '', apiKey ?? '')
   const [refreshKey, setRefreshKey] = useState(0)
   const [activeViz, setActiveViz] = useState(VISUALIZATIONS[0].id)
   const [addingAccount, setAddingAccount] = useState(false)
-  const [splitCollabs, setSplitCollabs] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const splitCollabs = settings.splitCollabs
+  const toggleSplitCollabs = () => updateSettings({ splitCollabs: !settings.splitCollabs })
   const { pinned, toggle: togglePin } = usePinnedViews(ALL_VIEW_IDS)
   const vizRef = useRef<HTMLDivElement>(null)
   const [isCapturing, setIsCapturing] = useState(false)
@@ -69,10 +76,23 @@ export default function App() {
         accounts={accounts}
         activeAccount={activeAccount}
         totalScrobbles={total}
+        autoFetchImages={settings.autoFetchImages}
+        backfill={backfill}
         onSyncComplete={() => setRefreshKey(k => k + 1)}
         onSwitchAccount={username => { switchAccount(username); setRefreshKey(k => k + 1) }}
         onAddAccount={() => setAddingAccount(true)}
         onRemoveAccount={removeAccount}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
+
+      <SettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        settings={settings}
+        onUpdate={updateSettings}
+        apiKey={apiKey}
+        onSaveApiKey={saveApiKey}
+        backfill={backfill}
       />
 
       {/* Mobile nav */}
@@ -86,7 +106,7 @@ export default function App() {
           </button>
         ))}
         <button
-          onClick={() => setSplitCollabs(v => !v)}
+          onClick={toggleSplitCollabs}
           className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ml-auto ${
             splitCollabs ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'
           }`}>
@@ -101,7 +121,7 @@ export default function App() {
           onSelect={setActiveViz}
           onUnpin={togglePin}
           splitCollabs={splitCollabs}
-          onToggleSplitCollabs={() => setSplitCollabs(v => !v)}
+          onToggleSplitCollabs={toggleSplitCollabs}
         />
         <main className="flex-1 overflow-auto p-6">
           {!loading && (
