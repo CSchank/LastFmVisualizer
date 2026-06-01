@@ -1,5 +1,6 @@
 import { LastFmApi, type RawTrack } from '../api/lastfm'
 import { type LastFmDB, getLatestTimestamp, getEarliestTimestamp, getSyncMeta, setSyncMeta, type Scrobble } from '../db'
+import { isLastFmPlaceholder } from '../utils/lastfmImage'
 
 export type SyncProgress = {
   phase: 'idle' | 'syncing' | 'done' | 'error'
@@ -11,7 +12,8 @@ export type SyncProgress = {
 function trackToScrobble(t: RawTrack): Scrobble | null {
   if (!t.date) return null
   const image = t.image?.find(i => i.size === 'extralarge') ?? t.image?.find(i => i.size === 'large')
-  const imageUrl = image?.['#text'] || undefined
+  const rawImageUrl = image?.['#text'] || undefined
+  const imageUrl = isLastFmPlaceholder(rawImageUrl) ? undefined : rawImageUrl
   return {
     timestamp: parseInt(t.date.uts, 10),
     artist: t.artist['#text'],

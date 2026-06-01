@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie'
+import { isLastFmPlaceholder } from '../utils/lastfmImage'
 
 export interface Scrobble {
   id?: number
@@ -38,6 +39,20 @@ export class LastFmDB extends Dexie {
       syncState: 'key',
       artistImages: 'artist',
     })
+    this.version(3)
+      .stores({
+        scrobbles: '++id, timestamp, artist, album, track',
+        syncState: 'key',
+        artistImages: 'artist',
+      })
+      .upgrade(async tx => {
+        await tx.table('scrobbles').toCollection().modify(s => {
+          if (isLastFmPlaceholder(s.imageUrl)) s.imageUrl = undefined
+        })
+        await tx.table('artistImages').toCollection().modify(r => {
+          if (isLastFmPlaceholder(r.imageUrl)) r.imageUrl = null
+        })
+      })
   }
 }
 

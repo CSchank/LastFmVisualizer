@@ -42,7 +42,24 @@ export function SetupFlow({ hasApiKey, onSaveApiKey, onAddAccount }: Props) {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-300"
               />
               <p className="text-xs text-gray-400 mt-1">
-                Get a free key at <span className="text-red-500">last.fm/api/account/create</span>
+                <a
+                  href="https://www.last.fm/api/account/create"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-red-500 hover:underline"
+                >
+                  Get a free key
+                </a>
+                {' or '}
+                <a
+                  href="https://www.last.fm/api/accounts"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-red-500 hover:underline"
+                >
+                  find an existing one
+                </a>
+                .
               </p>
             </div>
           )}

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { LastFmApi } from '../api/lastfm'
 import { getDb, exportToJSON, importFromJSON } from '../db'
 import { syncScrobbles, type SyncProgress } from '../sync/sync'
-import { backfillArtistImages, type BackfillProgress } from '../api/artistImages'
+import { backfillArtistImages, type BackfillProgress, type ImageFetchLogEntry } from '../api/artistImages'
+import { getSpotifyCredentials, saveSpotifyCredentials, clearSpotifyCredentials } from '../api/spotify'
 import { CheckSolidIcon, ChevronDownIcon, CloseIcon, PlusIcon } from './icons/CommonIcons'
 
 interface Props {
@@ -24,8 +25,12 @@ export function Header({
   const [isSyncing, setIsSyncing] = useState(false)
   const [statusMsg, setStatusMsg] = useState<{ text: string; ok: boolean } | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [spotifyOpen, setSpotifyOpen] = useState(false)
+  const [spotifyId, setSpotifyId] = useState('')
+  const [spotifySecret, setSpotifySecret] = useState('')
   const [backfillProgress, setBackfillProgress] = useState<BackfillProgress | null>(null)
   const [isBackfilling, setIsBackfilling] = useState(false)
+  const [backfillLog, setBackfillLog] = useState<ImageFetchLogEntry[] | null>(null)
   const backfillAbortRef = useRef<AbortController | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -55,6 +60,20 @@ export function Header({
     }
   }
 
+  const handleDownloadLog = () => {
+    if (!backfillLog) return
+    const lines = ['artist,source,url', ...backfillLog.map(e =>
+      `"${e.artist.replace(/"/g, '""')}",${e.source},"${e.url ?? ''}"`
+    )]
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `artist-images-${activeAccount}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const handleBackfill = async () => {
     if (isBackfilling) {
       backfillAbortRef.current?.abort()
@@ -65,13 +84,22 @@ export function Header({
     setIsBackfilling(true)
     setBackfillProgress(null)
     try {
-      const added = await backfillArtistImages(
+      const { found, log } = await backfillArtistImages(
         getDb(activeAccount),
         apiKey,
         p => setBackfillProgress(p),
         controller.signal,
       )
-      setStatusMsg({ text: `Fetched ${added} artist images.`, ok: true })
+      const bySource = log.reduce<Record<string, number>>((acc, e) => {
+        acc[e.source] = (acc[e.source] ?? 0) + 1
+        return acc
+      }, {})
+      const parts = (['theaudiodb', 'lastfm', 'spotify', 'wikipedia'] as const)
+        .filter(s => bySource[s])
+        .map(s => `${bySource[s]} ${s}`)
+      const summary = parts.length ? ` (${parts.join(' · ')})` : ''
+      setBackfillLog(log)
+      setStatusMsg({ text: `Found ${found} images${summary}, ${(bySource.none ?? 0)} not found.`, ok: true })
     } catch {
       setStatusMsg({ text: 'Artist image fetch failed.', ok: false })
     } finally {
@@ -120,7 +148,7 @@ export function Header({
           </button>
 
           {dropdownOpen && (
-            <div className="absolute left-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1">
+            <div className="absolute left-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1">
               {accounts.map(acc => (
                 <div key={acc} className="flex items-center px-3 py-1.5 hover:bg-gray-50 group">
                   <button
@@ -154,6 +182,70 @@ export function Header({
                   <PlusIcon className="w-3.5 h-3.5" />
                   Add account…
                 </button>
+              </div>
+              <div className="border-t border-gray-100 mt-1 pt-1 px-3 pb-2">
+                <div className="flex items-center justify-between py-1.5">
+                  <span className="text-xs font-medium text-gray-500">Spotify artist images</span>
+                  {getSpotifyCredentials()
+                    ? <span className="text-xs text-green-500">Configured</span>
+                    : <span className="text-xs text-gray-400">Not set</span>
+                  }
+                </div>
+                {spotifyOpen ? (
+                  <div className="space-y-1.5 mt-1">
+                    <input
+                      placeholder="Client ID"
+                      value={spotifyId}
+                      onChange={e => setSpotifyId(e.target.value)}
+                      className="w-full text-xs border border-gray-200 rounded-md px-2 py-1.5 outline-none focus:border-green-400"
+                    />
+                    <input
+                      type="password"
+                      placeholder="Client Secret"
+                      value={spotifySecret}
+                      onChange={e => setSpotifySecret(e.target.value)}
+                      className="w-full text-xs border border-gray-200 rounded-md px-2 py-1.5 outline-none focus:border-green-400"
+                    />
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={() => {
+                          saveSpotifyCredentials(spotifyId, spotifySecret)
+                          setSpotifyOpen(false)
+                        }}
+                        disabled={!spotifyId.trim() || !spotifySecret.trim()}
+                        className="flex-1 text-xs bg-green-500 hover:bg-green-600 disabled:opacity-40 text-white rounded-md px-2 py-1.5 font-medium transition-colors"
+                      >
+                        Save
+                      </button>
+                      {getSpotifyCredentials() && (
+                        <button
+                          onClick={() => { clearSpotifyCredentials(); setSpotifyOpen(false) }}
+                          className="text-xs text-red-400 hover:text-red-600 px-2 py-1.5 transition-colors"
+                        >
+                          Clear
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setSpotifyOpen(false)}
+                        className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      const creds = getSpotifyCredentials()
+                      setSpotifyId(creds?.clientId ?? '')
+                      setSpotifySecret(creds?.clientSecret ?? '')
+                      setSpotifyOpen(true)
+                    }}
+                    className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {getSpotifyCredentials() ? 'Edit credentials…' : 'Configure…'}
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -215,6 +307,12 @@ export function Header({
             ? `Stop (${backfillProgress?.done ?? 0}/${backfillProgress?.total ?? '?'})`
             : 'Fetch Artist Images'}
         </button>
+        {backfillLog && !isBackfilling && (
+          <button onClick={handleDownloadLog}
+            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors">
+            Download Log
+          </button>
+        )}
       </div>
     </header>
   )

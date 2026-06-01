@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { toPng } from 'html-to-image'
 import { useApiKey } from './hooks/useApiKey'
 import { useAccounts } from './hooks/useAccounts'
 import { useScrobbles } from './hooks/useScrobbles'
@@ -18,6 +19,23 @@ export default function App() {
   const [addingAccount, setAddingAccount] = useState(false)
   const [splitCollabs, setSplitCollabs] = useState(false)
   const { pinned, toggle: togglePin } = usePinnedViews(ALL_VIEW_IDS)
+  const vizRef = useRef<HTMLDivElement>(null)
+  const [isCapturing, setIsCapturing] = useState(false)
+
+  const handleDownloadPng = async () => {
+    if (!vizRef.current || isCapturing) return
+    setIsCapturing(true)
+    try {
+      const dataUrl = await toPng(vizRef.current, { pixelRatio: 2 })
+      const label = VISUALIZATIONS.find(v => v.id === activeViz)?.label ?? activeViz
+      const a = document.createElement('a')
+      a.href = dataUrl
+      a.download = `${label.toLowerCase().replace(/\s+/g, '-')}-${activeAccount}.png`
+      a.click()
+    } finally {
+      setIsCapturing(false)
+    }
+  }
 
   // The "all" view is always present in the nav, regardless of pin state
   const navViews = useMemo(
@@ -86,17 +104,33 @@ export default function App() {
           onToggleSplitCollabs={() => setSplitCollabs(v => !v)}
         />
         <main className="flex-1 overflow-auto p-6">
-          {loading ? (
-            <div className="flex items-center justify-center h-64 text-gray-400">Loading…</div>
-          ) : (
-            <ActiveComponent
-              scrobbles={scrobbles}
-              splitCollabs={splitCollabs}
-              onNavigate={setActiveViz}
-              pinned={pinned}
-              onTogglePin={togglePin}
-            />
+          {!loading && (
+            <div className="flex justify-end mb-3">
+              <button
+                onClick={handleDownloadPng}
+                disabled={isCapturing}
+                className="px-2.5 py-1 text-xs text-gray-500 bg-white border border-gray-200 hover:border-gray-300 hover:text-gray-700 disabled:opacity-40 rounded-lg transition-colors flex items-center gap-1.5"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M8 2v8m0 0-3-3m3 3 3-3M2 11v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                {isCapturing ? 'Capturing…' : 'Download PNG'}
+              </button>
+            </div>
           )}
+          <div ref={vizRef}>
+            {loading ? (
+              <div className="flex items-center justify-center h-64 text-gray-400">Loading…</div>
+            ) : (
+              <ActiveComponent
+                scrobbles={scrobbles}
+                splitCollabs={splitCollabs}
+                onNavigate={setActiveViz}
+                pinned={pinned}
+                onTogglePin={togglePin}
+              />
+            )}
+          </div>
         </main>
       </div>
     </div>
