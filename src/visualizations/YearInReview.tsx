@@ -4,6 +4,7 @@ import type { VizProps } from './registry'
 import { splitArtists, buildRawArtistSet } from '../utils/artists'
 import { getArtistImage } from '../api/artistImages'
 import { getDb } from '../db'
+import { ArtistAvatar } from '../components/ArtistAvatar'
 import { buildSvg, downloadYearRecapInfographicPng, imageUrlToDataUrl } from '../utils/yearRecapInfographic'
 
 function topN(values: string[], n: number): { name: string; plays: number }[] {
@@ -241,7 +242,7 @@ export function YearInReview({ scrobbles, splitCollabs }: VizProps) {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <TopList title="Top Artists" rows={recap.topArtists.slice(0, 10)} />
+            <TopList title="Top Artists" rows={recap.topArtists.slice(0, 10)} withAvatar />
             <TopList title="Top Tracks" rows={recap.topTracks.slice(0, 10)} />
             <TopList title="Top Albums" rows={recap.topAlbums.slice(0, 10)} />
           </div>
@@ -261,7 +262,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   )
 }
 
-function TopList({ title, rows }: { title: string; rows: { name: string; plays: number }[] }) {
+function TopList({ title, rows, withAvatar }: { title: string; rows: { name: string; plays: number }[]; withAvatar?: boolean }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4">
       <h3 className="text-sm font-semibold text-gray-800 mb-2">{title}</h3>
@@ -269,6 +270,7 @@ function TopList({ title, rows }: { title: string; rows: { name: string; plays: 
         {rows.map((row, i) => (
           <div key={row.name} className="flex items-center gap-2">
             <span className="w-5 text-xs text-gray-400">{i + 1}</span>
+            {withAvatar && <ArtistAvatar artist={row.name} sizeClass="w-7 h-7" iconClass="w-4 h-4" />}
             <span className="flex-1 text-sm text-gray-700 truncate" title={row.name}>{row.name}</span>
             <span className="text-xs text-gray-500 tabular-nums">{row.plays.toLocaleString()}</span>
           </div>

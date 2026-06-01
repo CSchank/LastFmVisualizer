@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { differenceInCalendarDays, format, fromUnixTime } from 'date-fns'
 import type { VizProps } from './registry'
 import { splitArtists, buildRawArtistSet } from '../utils/artists'
+import { ArtistAvatar } from '../components/ArtistAvatar'
 
 interface ArtistPredict {
   artist: string
@@ -91,7 +92,12 @@ export function RelistenPredictor({ scrobbles, splitCollabs }: VizProps) {
             ) : ranking.map((r, i) => (
               <tr key={r.artist} className="hover:bg-gray-50">
                 <td className="py-2 px-2 text-gray-400">{i + 1}</td>
-                <td className="py-2 px-2 text-gray-700">{r.artist}</td>
+                <td className="py-2 px-2 text-gray-700">
+                  <div className="flex items-center gap-2">
+                    <ArtistAvatar artist={r.artist} />
+                    <span>{r.artist}</span>
+                  </div>
+                </td>
                 <td className="py-2 px-2 text-right text-gray-700 font-medium">{r.score.toFixed(3)}</td>
                 <td className="py-2 px-2 text-right text-gray-600">{r.plays.toLocaleString()}</td>
                 <td className="py-2 px-2 text-right text-gray-600">{r.daysSinceLast.toLocaleString()}</td>

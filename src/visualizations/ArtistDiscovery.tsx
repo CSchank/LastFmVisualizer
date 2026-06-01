@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { format, fromUnixTime } from 'date-fns'
 import type { VizProps } from './registry'
+import { ArtistAvatar } from '../components/ArtistAvatar'
 
 export function ArtistDiscovery({ scrobbles }: VizProps) {
   const [query, setQuery] = useState('')
@@ -62,7 +63,12 @@ export function ArtistDiscovery({ scrobbles }: VizProps) {
             {filtered.map((d, i) => (
               <tr key={d.artist} className="hover:bg-gray-50">
                 <td className="py-2 px-3 text-gray-400">{i + 1}</td>
-                <td className="py-2 px-3 font-medium text-gray-800">{d.artist}</td>
+                <td className="py-2 px-3 font-medium text-gray-800">
+                  <div className="flex items-center gap-2">
+                    <ArtistAvatar artist={d.artist} />
+                    <span>{d.artist}</span>
+                  </div>
+                </td>
                 <td className="py-2 px-3 text-gray-600">
                   {format(fromUnixTime(d.firstPlay), 'MMM d, yyyy')}
                 </td>

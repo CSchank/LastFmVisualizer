@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import type { VizProps } from './registry'
 import { format, fromUnixTime } from 'date-fns'
 import { splitArtists, buildRawArtistSet } from '../utils/artists'
+import { ArtistAvatar } from '../components/ArtistAvatar'
 
 function topN<T extends string>(arr: T[], n: number): { name: T; count: number }[] {
   const counts = new Map<T, number>()
@@ -101,6 +102,7 @@ export function Overview({ scrobbles, splitCollabs }: VizProps) {
           {stats.topArtists.map((a, i) => (
             <div key={a.name} className="flex items-center gap-3">
               <span className="text-lg font-bold text-gray-300 w-6 text-center">{i + 1}</span>
+              <ArtistAvatar artist={a.name} sizeClass="w-9 h-9" iconClass="w-5 h-5" />
               <div className="flex-1">
                 <div className="flex justify-between mb-1">
                   <span className="text-sm font-medium text-gray-800">{a.name}</span>

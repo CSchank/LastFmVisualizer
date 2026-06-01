@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { format, fromUnixTime, parseISO } from 'date-fns'
 import type { VizProps } from './registry'
 import { splitArtists, buildRawArtistSet } from '../utils/artists'
+import { ArtistAvatar } from '../components/ArtistAvatar'
 import {
   fetchNewestReleaseForArtist,
   getCachedNewestRelease,
@@ -258,7 +259,12 @@ export function NewestReleases({ scrobbles, splitCollabs }: VizProps) {
             ) : (
               sortedResults.map(row => (
                 <tr key={row.artist} className="hover:bg-gray-50">
-                  <td className="py-2 px-3 font-medium text-gray-800">{row.artist}</td>
+                  <td className="py-2 px-3 font-medium text-gray-800">
+                    <div className="flex items-center gap-2">
+                      <ArtistAvatar artist={row.artist} />
+                      <span>{row.artist}</span>
+                    </div>
+                  </td>
                   <td className="py-2 px-3 text-right text-gray-600">{row.plays.toLocaleString()}</td>
                   <td className="py-2 px-3 text-gray-700">
                     {row.release?.url ? (

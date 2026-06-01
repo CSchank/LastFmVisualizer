@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { format, fromUnixTime, startOfMonth } from 'date-fns'
 import type { VizProps } from './registry'
 import { splitArtists, buildRawArtistSet } from '../utils/artists'
+import { ArtistAvatar } from '../components/ArtistAvatar'
 
 const TOP_N = 10
 const ROW_H = 48
@@ -201,6 +202,7 @@ export function ArtistRace({ scrobbles, splitCollabs }: VizProps) {
               <span className="w-5 text-xs text-gray-400 text-right shrink-0 tabular-nums">
                 {exiting ? '' : rank + 1}
               </span>
+              <ArtistAvatar artist={artist} sizeClass="w-9 h-9" iconClass="w-5 h-5" />
               <div className="flex-1 relative h-full">
                 <div
                   className="absolute left-0 inset-y-0 rounded-r-lg flex items-center px-3 overflow-hidden"

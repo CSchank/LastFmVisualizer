@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { format, fromUnixTime } from 'date-fns'
 import type { VizProps } from './registry'
 import { splitArtists, buildRawArtistSet } from '../utils/artists'
+import { ArtistAvatar } from '../components/ArtistAvatar'
 
 interface ArtistStat {
   artist: string
@@ -160,7 +161,12 @@ export function ForgottenFavorites({ scrobbles, splitCollabs }: VizProps) {
               {top.map((s, i) => (
                 <tr key={s.artist} className="hover:bg-gray-50">
                   <td className="py-2 px-2 text-gray-400 tabular-nums">{i + 1}</td>
-                  <td className="py-2 px-2 font-medium text-gray-800 truncate max-w-xs">{s.artist}</td>
+                  <td className="py-2 px-2 font-medium text-gray-800 max-w-xs">
+                    <div className="flex items-center gap-2">
+                      <ArtistAvatar artist={s.artist} />
+                      <span className="truncate">{s.artist}</span>
+                    </div>
+                  </td>
                   <td className="py-2 px-2 text-gray-700 w-48">
                     <div className="flex items-center gap-2">
                       <span className="tabular-nums w-12">{s.total.toLocaleString()}</span>
