@@ -89,19 +89,27 @@ export interface BackfillResult {
   log: ImageFetchLogEntry[]
 }
 
+export interface BackfillOptions {
+  // Re-attempt artists previously stored as not-found. Off by default so a
+  // not-found artist isn't re-fetched on every sync.
+  retryNotFound?: boolean
+}
+
 export async function backfillArtistImages(
   db: LastFmDB,
   apiKey: string,
   onProgress: (p: BackfillProgress) => void,
   signal: AbortSignal,
+  options: BackfillOptions = {},
 ): Promise<BackfillResult> {
   const allArtists = (await db.scrobbles.orderBy('artist').uniqueKeys()) as string[]
-  const withImage = new Set(
-    (await db.artistImages.toArray())
-      .filter(r => r.imageUrl !== null && !isLastFmPlaceholder(r.imageUrl))
-      .map(r => r.artist),
-  )
-  const missing = allArtists.filter(a => !withImage.has(a))
+  const stored = new Map((await db.artistImages.toArray()).map(r => [r.artist, r.imageUrl]))
+  const missing = allArtists.filter(a => {
+    if (!stored.has(a)) return true                              // never attempted
+    if (!options.retryNotFound) return false                     // attempted — leave it
+    const url = stored.get(a)!
+    return url === null || isLastFmPlaceholder(url)              // retry only the not-found
+  })
 
   let done = 0
   let found = 0
@@ -120,4 +128,21 @@ export async function backfillArtistImages(
   }
 
   return { found, log }
+}
+
+// Manually set (or clear, with an empty url) an artist's image. Stored like
+// any other image, so it survives and is never re-fetched (it's non-null).
+export async function setArtistImageManual(db: LastFmDB, artist: string, url: string): Promise<void> {
+  const imageUrl = url.trim() || null
+  memCache.set(artist, imageUrl)
+  await db.artistImages.put({ artist, imageUrl })
+}
+
+// Artists that were attempted but produced no image — candidates for a
+// manual URL or a retry.
+export async function getNotFoundArtists(db: LastFmDB): Promise<string[]> {
+  return (await db.artistImages.toArray())
+    .filter(r => r.imageUrl === null || isLastFmPlaceholder(r.imageUrl))
+    .map(r => r.artist)
+    .sort((a, b) => a.localeCompare(b))
 }

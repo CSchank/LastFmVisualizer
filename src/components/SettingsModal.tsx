@@ -38,6 +38,69 @@ function Row({ title, description, children }: { title: string; description: str
   )
 }
 
+function NotFoundManager({ backfill }: { backfill: ArtistImageBackfill }) {
+  const [list, setList] = useState<string[] | null>(null)
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(false)
+
+  const load = async () => {
+    setLoading(true)
+    setList(await backfill.loadNotFound())
+    setLoading(false)
+  }
+
+  // Refresh the list once a backfill run finishes (its counts may have changed).
+  useEffect(() => {
+    if (list !== null && !backfill.isBackfilling) load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backfill.isBackfilling])
+
+  if (list === null) {
+    return (
+      <button onClick={load} disabled={loading}
+        className="mt-2 text-xs text-red-500 hover:underline disabled:opacity-50">
+        {loading ? 'Loading…' : 'Manage not-found artists…'}
+      </button>
+    )
+  }
+
+  const save = async (artist: string) => {
+    const url = (drafts[artist] ?? '').trim()
+    if (!url) return
+    await backfill.setImage(artist, url)
+    setList(prev => prev?.filter(a => a !== artist) ?? null)
+  }
+
+  return (
+    <div className="mt-3">
+      <p className="text-xs text-gray-500 mb-1.5">
+        {list.length} not-found artist{list.length === 1 ? '' : 's'}. Paste an image URL to set one manually.
+      </p>
+      {list.length === 0 ? (
+        <p className="text-xs text-gray-400">None — every attempted artist has an image.</p>
+      ) : (
+        <div className="max-h-56 overflow-auto divide-y divide-gray-100 border border-gray-100 rounded-lg">
+          {list.map(artist => (
+            <div key={artist} className="flex items-center gap-2 px-2 py-1.5">
+              <span className="text-xs text-gray-700 truncate flex-1 min-w-0" title={artist}>{artist}</span>
+              <input
+                value={drafts[artist] ?? ''}
+                onChange={e => setDrafts(d => ({ ...d, [artist]: e.target.value }))}
+                placeholder="Image URL"
+                className="w-40 text-xs border border-gray-200 rounded-md px-2 py-1 outline-none focus:border-red-300"
+              />
+              <button onClick={() => save(artist)} disabled={!(drafts[artist] ?? '').trim()}
+                className="text-xs text-red-500 hover:underline disabled:opacity-40 disabled:no-underline shrink-0">
+                Save
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function SettingsModal({ open, onClose, settings, onUpdate, apiKey, onSaveApiKey, backfill }: Props) {
   const [keyDraft, setKeyDraft] = useState(apiKey)
 
@@ -88,18 +151,29 @@ export function SettingsModal({ open, onClose, settings, onUpdate, apiKey, onSav
                 <p className="text-sm font-medium text-gray-800">Fetch artist images now</p>
                 <p className="text-xs text-gray-500 mt-0.5">Scan all artists and fetch any missing images.</p>
               </div>
-              <button
-                onClick={() => (backfill.isBackfilling ? backfill.stop() : backfill.run(false))}
-                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors shrink-0 ${
-                  backfill.isBackfilling
-                    ? 'bg-purple-100 hover:bg-purple-200 text-purple-700'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                }`}
-              >
-                {backfill.isBackfilling
-                  ? `Stop (${backfill.progress?.done ?? 0}/${backfill.progress?.total ?? '?'})`
-                  : 'Fetch'}
-              </button>
+              <div className="flex gap-1.5 shrink-0">
+                {!backfill.isBackfilling && (
+                  <button
+                    onClick={() => backfill.run(false, true)}
+                    title="Re-attempt artists previously stored as not-found"
+                    className="px-3 py-1.5 text-sm font-medium rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+                  >
+                    Retry not-found
+                  </button>
+                )}
+                <button
+                  onClick={() => (backfill.isBackfilling ? backfill.stop() : backfill.run(false))}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                    backfill.isBackfilling
+                      ? 'bg-purple-100 hover:bg-purple-200 text-purple-700'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  }`}
+                >
+                  {backfill.isBackfilling
+                    ? `Stop (${backfill.progress?.done ?? 0}/${backfill.progress?.total ?? '?'})`
+                    : 'Fetch'}
+                </button>
+              </div>
             </div>
             {backfill.isBackfilling && backfill.progress && (
               <div className="mt-2 h-1 bg-gray-100 rounded-full overflow-hidden">
@@ -121,6 +195,7 @@ export function SettingsModal({ open, onClose, settings, onUpdate, apiKey, onSav
                 )}
               </div>
             )}
+            <NotFoundManager backfill={backfill} />
           </div>
 
           <div className="py-3">

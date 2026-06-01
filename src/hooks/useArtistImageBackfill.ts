@@ -1,5 +1,11 @@
 import { useRef, useState } from 'react'
-import { backfillArtistImages, type BackfillProgress, type ImageFetchLogEntry } from '../api/artistImages'
+import {
+  backfillArtistImages,
+  setArtistImageManual,
+  getNotFoundArtists,
+  type BackfillProgress,
+  type ImageFetchLogEntry,
+} from '../api/artistImages'
 import { getDb } from '../db'
 
 export interface BackfillStatus { text: string; ok: boolean }
@@ -13,8 +19,9 @@ export function useArtistImageBackfill(activeAccount: string, apiKey: string) {
   const runningRef = useRef(false)
 
   // auto=true suppresses the "found 0" message when a post-sync run has
-  // nothing new to fetch, and stays silent on failure.
-  const run = async (auto: boolean) => {
+  // nothing new to fetch, and stays silent on failure. retryNotFound also
+  // re-attempts artists previously stored as not-found.
+  const run = async (auto: boolean, retryNotFound = false) => {
     if (runningRef.current) return
     runningRef.current = true
     const controller = new AbortController()
@@ -27,6 +34,7 @@ export function useArtistImageBackfill(activeAccount: string, apiKey: string) {
         apiKey,
         p => setProgress(p),
         controller.signal,
+        { retryNotFound },
       )
       if (!auto || entries.length > 0) {
         const bySource = entries.reduce<Record<string, number>>((acc, e) => {
@@ -65,7 +73,10 @@ export function useArtistImageBackfill(activeAccount: string, apiKey: string) {
     URL.revokeObjectURL(url)
   }
 
-  return { isBackfilling, progress, log, status, run, stop, downloadLog }
+  const setImage = (artist: string, url: string) => setArtistImageManual(getDb(activeAccount), artist, url)
+  const loadNotFound = () => getNotFoundArtists(getDb(activeAccount))
+
+  return { isBackfilling, progress, log, status, run, stop, downloadLog, setImage, loadNotFound }
 }
 
 export type ArtistImageBackfill = ReturnType<typeof useArtistImageBackfill>
