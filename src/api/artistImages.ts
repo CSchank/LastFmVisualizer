@@ -1,5 +1,4 @@
 import type { LastFmDB } from '../db'
-import { fetchArtistImageFromSpotify, getSpotifyCredentials } from './spotify'
 import { fetchArtistImageFromAudioDb } from './theaudiodb'
 import { isLastFmPlaceholder } from '../utils/lastfmImage'
 
@@ -9,7 +8,7 @@ const WIKI_BASE = 'https://en.wikipedia.org/api/rest_v1/page/summary/'
 const memCache = new Map<string, string | null>()
 const inflight = new Map<string, Promise<string | null>>()
 
-export type ImageSource = 'theaudiodb' | 'lastfm' | 'spotify' | 'wikipedia' | 'none'
+export type ImageSource = 'theaudiodb' | 'lastfm' | 'wikipedia' | 'none'
 
 export interface ImageFetchLogEntry {
   artist: string
@@ -48,12 +47,6 @@ async function fetchImageWithSource(
 
   const lastfm = await fetchFromLastFm(artist, apiKey).catch(() => null)
   if (lastfm) return { url: lastfm, source: 'lastfm' }
-
-  const creds = getSpotifyCredentials()
-  if (creds) {
-    const url = await fetchArtistImageFromSpotify(artist, creds.clientId, creds.clientSecret).catch(() => null)
-    if (url) return { url, source: 'spotify' }
-  }
 
   const wiki = await fetchFromWikipedia(artist).catch(() => null)
   if (wiki) return { url: wiki, source: 'wikipedia' }
