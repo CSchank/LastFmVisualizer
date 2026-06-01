@@ -98,7 +98,6 @@ export function RecentScrobbles({ scrobbles }: VizProps) {
           <thead className="border-b border-gray-200 bg-gray-50">
             <tr>
               <th className="py-2 pl-4 pr-1 w-12" />
-              <th className="py-2 px-1 w-12" />
               <th className="text-left py-2 px-2 font-medium text-gray-500">Track</th>
               <th className="text-left py-2 px-2 font-medium text-gray-500">Artist</th>
               <th className="text-left py-2 px-2 font-medium text-gray-500 hidden md:table-cell">Album</th>
@@ -111,11 +110,13 @@ export function RecentScrobbles({ scrobbles }: VizProps) {
                 <td className="py-1.5 pl-4 pr-1">
                   <Photo url={s.imageUrl} alt={s.album || s.track} />
                 </td>
-                <td className="py-1.5 px-1">
-                  <Photo url={artistImages.get(s.artist)} alt={s.artist} round />
-                </td>
                 <td className="py-1.5 px-2 font-medium text-gray-800 max-w-xs truncate">{s.track}</td>
-                <td className="py-1.5 px-2 text-gray-600 max-w-xs truncate">{s.artist}</td>
+                <td className="py-1.5 px-2 text-gray-600">
+                  <div className="flex items-center gap-2 max-w-xs">
+                    <Photo url={artistImages.get(s.artist)} alt={s.artist} round />
+                    <span className="truncate">{s.artist}</span>
+                  </div>
+                </td>
                 <td className="py-1.5 px-2 text-gray-500 max-w-xs truncate hidden md:table-cell">{s.album || '—'}</td>
                 <td className="py-1.5 pl-2 pr-4 text-right text-gray-400 whitespace-nowrap">
                   {format(fromUnixTime(s.timestamp), 'MMM d, yyyy HH:mm')}
