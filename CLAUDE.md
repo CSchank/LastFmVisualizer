@@ -13,6 +13,16 @@ npx tsc --noEmit  # type-check only; run this after every non-trivial change to 
 
 There is no test runner and no linter configured. Type-checking (`npx tsc --noEmit`) is the only automated quality gate — it must exit cleanly before reporting a task as done.
 
+### Testing with fake data only
+
+When verifying behavior in a browser (e.g. via the Chrome DevTools MCP), **always use fake/seeded data — never the user's real Last.fm account or real API keys.** Seed a throwaway account and synthetic scrobbles instead:
+
+- Set a dummy account in `localStorage`: `lastfm_api_key` = any placeholder, `lastfm_accounts` = `["tester"]`, `lastfm_active_account` = `"tester"`.
+- Inject synthetic rows directly into the per-account IndexedDB (`LastFmVisualizer_tester`, `scrobbles` store) rather than syncing — this avoids hitting the Last.fm API.
+- Prefer a throwaway origin (e.g. a separate dev-server port) so test data never lands in the real account's database.
+
+Do not run a real sync, enter a real API key, or use the user's actual account for testing.
+
 ## Architecture overview
 
 A purely client-side React SPA that pulls the user's Last.fm play history into IndexedDB (via Dexie) and renders a growing set of visualizations on top of it. No backend.
