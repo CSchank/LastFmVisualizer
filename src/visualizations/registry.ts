@@ -7,6 +7,11 @@ export interface VizProps {
   onNavigate?: (id: string) => void
   pinned?: Set<string>
   onTogglePin?: (id: string) => void
+  // Set by the Dashboard when a viz is embedded as a resizable widget. Single-
+  // chart views honor it to drop their own card chrome and fill the widget
+  // height (chart uses maintainAspectRatio:false). Views that don't read it
+  // simply render at natural size and scroll.
+  fill?: boolean
 }
 
 export interface VizDefinition {
@@ -42,6 +47,7 @@ import { RelistenPredictor } from './RelistenPredictor'
 import { HiddenGems } from './HiddenGems'
 import { StreaksMilestones } from './StreaksMilestones'
 import { PlaylistBuilder } from './PlaylistBuilder'
+import { Dashboard } from './Dashboard'
 
 export const VISUALIZATIONS: VizDefinition[] = [
   {
@@ -49,6 +55,12 @@ export const VISUALIZATIONS: VizDefinition[] = [
     label: 'All Views',
     description: 'Browse every visualization',
     component: AllViews,
+  },
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    description: 'Build a custom dashboard — drag, drop, and resize any widgets',
+    component: Dashboard,
   },
   {
     id: 'recent',
@@ -201,3 +213,48 @@ export const VISUALIZATIONS: VizDefinition[] = [
     component: PlaylistBuilder,
   },
 ]
+
+// Per-view widget sizing for the Dashboard grid (12 cols, rowHeight 36).
+// `w`/`h` is the size a freshly-added widget opens at — chosen to show the
+// view without scrolling at its natural content height. `minW`/`minH` is how
+// far it can be shrunk: bounded views (charts, calendar, heatmap, overview,
+// streaks…) keep a min that fits their content so they don't scroll; inherently
+// tall views (long lists/tables: recent scrobbles, year in review, sessions,
+// the timelines…) keep a small floor and simply scroll. Derived from measured
+// natural heights at ~700px wide. Streamgraph/Network need a wider min because
+// their graphics don't shrink below ~470px.
+export interface WidgetSize { w: number; h: number; minW: number; minH: number }
+
+export const DEFAULT_WIDGET_SIZE: WidgetSize = { w: 6, h: 9, minW: 3, minH: 4 }
+
+export const VIZ_SIZES: Record<string, WidgetSize> = {
+  recent:               { w: 5, h: 10, minW: 3, minH: 5 },
+  overview:             { w: 6, h: 13, minW: 4, minH: 10 },
+  timeline:             { w: 6, h: 8,  minW: 3, minH: 4 },
+  'top-charts':         { w: 5, h: 9,  minW: 3, minH: 4 },
+  heatmap:              { w: 5, h: 10, minW: 4, minH: 8 },
+  calendar:             { w: 8, h: 7,  minW: 4, minH: 4 },
+  dna:                  { w: 8, h: 8,  minW: 4, minH: 5 },
+  sessions:             { w: 6, h: 10, minW: 4, minH: 5 },
+  forgotten:            { w: 4, h: 8,  minW: 3, minH: 7 },
+  diversity:            { w: 6, h: 11, minW: 4, minH: 6 },
+  discovery:            { w: 4, h: 10, minW: 3, minH: 5 },
+  'artist-race':        { w: 6, h: 10, minW: 4, minH: 6 },
+  streamgraph:          { w: 6, h: 9,  minW: 5, minH: 6 },
+  'artist-timeline':    { w: 7, h: 11, minW: 4, minH: 6 },
+  network:              { w: 6, h: 10, minW: 5, minH: 6 },
+  'album-timeline':     { w: 7, h: 11, minW: 4, minH: 6 },
+  'track-timeline':     { w: 7, h: 11, minW: 4, minH: 6 },
+  'new-releases':       { w: 4, h: 9,  minW: 3, minH: 6 },
+  'seasonal-favorites': { w: 5, h: 11, minW: 3, minH: 6 },
+  'year-in-review':     { w: 6, h: 11, minW: 4, minH: 6 },
+  'era-explorer':       { w: 5, h: 11, minW: 3, minH: 6 },
+  'relisten-predictor': { w: 5, h: 11, minW: 3, minH: 5 },
+  'hidden-gems':        { w: 5, h: 11, minW: 3, minH: 5 },
+  'streaks-milestones': { w: 6, h: 13, minW: 3, minH: 10 },
+  'playlist-builder':   { w: 5, h: 11, minW: 3, minH: 5 },
+}
+
+export function widgetSize(vizId: string): WidgetSize {
+  return VIZ_SIZES[vizId] ?? DEFAULT_WIDGET_SIZE
+}

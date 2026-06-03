@@ -16,6 +16,14 @@ function iconClass(className?: string): string {
 export function getViewIcon(viewId: string, className?: string): ReactNode {
   const cls = iconClass(className)
   const icons: Record<string, ReactNode> = {
+    dashboard: (
+      <svg {...base} className={cls}>
+        <rect x="3" y="3" width="8" height="8" rx="1" />
+        <rect x="13" y="3" width="8" height="5" rx="1" />
+        <rect x="13" y="10" width="8" height="11" rx="1" />
+        <rect x="3" y="13" width="8" height="8" rx="1" />
+      </svg>
+    ),
     recent: (
       <svg {...base} className={cls}>
         <path d="M3 6h18M3 12h18M3 18h12" />

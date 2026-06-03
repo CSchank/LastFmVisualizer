@@ -23,10 +23,27 @@ export interface ArtistImage {
   imageUrl: string | null
 }
 
+export interface DashboardWidget {
+  i: string
+  vizId: string
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export interface Dashboard {
+  id?: number
+  name: string
+  createdAt: number
+  widgets: DashboardWidget[]
+}
+
 export class LastFmDB extends Dexie {
   scrobbles!: Table<Scrobble, number>
   syncState!: Table<SyncState, string>
   artistImages!: Table<ArtistImage, string>
+  dashboards!: Table<Dashboard, number>
 
   constructor(username: string) {
     super(`LastFmVisualizer_${username}`)
@@ -53,6 +70,12 @@ export class LastFmDB extends Dexie {
           if (isLastFmPlaceholder(r.imageUrl)) r.imageUrl = null
         })
       })
+    this.version(4).stores({
+      scrobbles: '++id, timestamp, artist, album, track',
+      syncState: 'key',
+      artistImages: 'artist',
+      dashboards: '++id, createdAt',
+    })
   }
 }
 
