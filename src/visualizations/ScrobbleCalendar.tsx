@@ -33,7 +33,7 @@ interface TooltipState {
   y: number
 }
 
-export function ScrobbleCalendar({ scrobbles }: VizProps) {
+export function ScrobbleCalendar({ scrobbles, fill }: VizProps) {
   const years = useMemo(() => {
     const set = new Set<number>()
     for (const s of scrobbles) set.add(fromUnixTime(s.timestamp).getFullYear())
@@ -136,9 +136,9 @@ export function ScrobbleCalendar({ scrobbles }: VizProps) {
   const gridH = ROWS * (CELL + GAP)
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+    <div className={fill ? 'space-y-3' : 'bg-white rounded-xl border border-gray-200 p-5 space-y-4'}>
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h2 className="font-semibold text-gray-800">Scrobble Calendar</h2>
+        {!fill && <h2 className="font-semibold text-gray-800">Scrobble Calendar</h2>}
         <div className="flex gap-1 flex-wrap">
           {years.map(y => (
             <button
@@ -165,57 +165,64 @@ export function ScrobbleCalendar({ scrobbles }: VizProps) {
         />
       </div>
 
-      <div className="overflow-x-auto">
-        <div className="relative" style={{ width: labelOffset + gridW, height: monthOffset + gridH }}>
+      <div className={fill ? '' : 'overflow-x-auto'}>
+        <svg
+          viewBox={`0 0 ${labelOffset + gridW} ${monthOffset + gridH}`}
+          style={fill
+            ? { width: '100%', height: 'auto' }
+            : { width: labelOffset + gridW, height: monthOffset + gridH }}
+        >
           {monthLabels.map((m, i) => (
-            <span
+            <text
               key={i}
-              className="absolute text-xs text-gray-500"
-              style={{ left: labelOffset + m.col * (CELL + GAP), top: 0 }}
+              x={labelOffset + m.col * (CELL + GAP)}
+              y={9}
+              className="fill-gray-500"
+              style={{ fontSize: 11 }}
             >
               {m.label}
-            </span>
+            </text>
           ))}
           {DAY_LABELS.map((d, i) => (
             d && (
-              <span
+              <text
                 key={i}
-                className="absolute text-xs text-gray-400"
-                style={{ left: 0, top: monthOffset + i * (CELL + GAP) - 1 }}
+                x={0}
+                y={monthOffset + i * (CELL + GAP) + 10}
+                className="fill-gray-400"
+                style={{ fontSize: 11 }}
               >
                 {d}
-              </span>
+              </text>
             )
           ))}
-          <div className="absolute" style={{ left: labelOffset, top: monthOffset }}>
-            {cells.map(c => {
-              const isSelected = selectedDay === c.key
-              return (
-                <div
-                  key={c.key}
-                  className={`absolute rounded-sm ${c.count > 0 ? 'cursor-pointer' : 'cursor-default'}`}
-                  style={{
-                    left: c.col * (CELL + GAP),
-                    top: c.row * (CELL + GAP),
-                    width: CELL,
-                    height: CELL,
-                    backgroundColor: getColor(c.count, maxCount),
-                    boxShadow: isSelected ? '0 0 0 2px #1f2937' : undefined,
-                  }}
-                  onMouseEnter={e => {
-                    const r = e.currentTarget.getBoundingClientRect()
-                    setTooltip({ cell: c, x: r.left + r.width / 2, y: r.top })
-                  }}
-                  onMouseLeave={() => setTooltip(null)}
-                  onClick={() => {
-                    if (c.count === 0) return
-                    setSelectedDay(prev => prev === c.key ? null : c.key)
-                  }}
-                />
-              )
-            })}
-          </div>
-        </div>
+          {cells.map(c => {
+            const isSelected = selectedDay === c.key
+            return (
+              <rect
+                key={c.key}
+                x={labelOffset + c.col * (CELL + GAP)}
+                y={monthOffset + c.row * (CELL + GAP)}
+                width={CELL}
+                height={CELL}
+                rx={2}
+                fill={getColor(c.count, maxCount)}
+                stroke={isSelected ? '#1f2937' : undefined}
+                strokeWidth={isSelected ? 2 : undefined}
+                className={c.count > 0 ? 'cursor-pointer' : 'cursor-default'}
+                onMouseEnter={e => {
+                  const r = e.currentTarget.getBoundingClientRect()
+                  setTooltip({ cell: c, x: r.left + r.width / 2, y: r.top })
+                }}
+                onMouseLeave={() => setTooltip(null)}
+                onClick={() => {
+                  if (c.count === 0) return
+                  setSelectedDay(prev => prev === c.key ? null : c.key)
+                }}
+              />
+            )
+          })}
+        </svg>
       </div>
 
       <div className="flex items-center gap-2 text-xs text-gray-500 justify-end">

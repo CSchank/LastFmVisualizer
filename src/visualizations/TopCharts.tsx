@@ -45,7 +45,7 @@ function topN(scrobbles: Scrobble[], dim: Dimension, n: number, splitCollabs: bo
     .map(([name, count]) => ({ name, count }))
 }
 
-export function TopCharts({ scrobbles, splitCollabs }: VizProps) {
+export function TopCharts({ scrobbles, splitCollabs, fill }: VizProps) {
   const [period, setPeriod] = useState<Period>('all')
   const [dim, setDim] = useState<Dimension>('artist')
 
@@ -70,7 +70,7 @@ export function TopCharts({ scrobbles, splitCollabs }: VizProps) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+    <div className={fill ? 'h-full flex flex-col gap-3 min-h-0' : 'bg-white rounded-xl border border-gray-200 p-5 space-y-4'}>
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex gap-1">
           {(['artist', 'album', 'track'] as Dimension[]).map(d => (
@@ -103,18 +103,21 @@ export function TopCharts({ scrobbles, splitCollabs }: VizProps) {
       {data.length === 0 ? (
         <div className="flex items-center justify-center h-48 text-gray-400">No scrobbles in this period.</div>
       ) : (
-        <Bar
-          data={chartData}
-          options={{
-            indexAxis: 'y',
-            responsive: true,
-            plugins: { legend: { display: false } },
-            scales: {
-              x: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
-              y: { grid: { display: false }, ticks: { font: { size: 11 } } },
-            },
-          }}
-        />
+        <div className={fill ? 'flex-1 min-h-0' : ''}>
+          <Bar
+            data={chartData}
+            options={{
+              indexAxis: 'y',
+              responsive: true,
+              maintainAspectRatio: !fill,
+              plugins: { legend: { display: false } },
+              scales: {
+                x: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+                y: { grid: { display: false }, ticks: { font: { size: 11 } } },
+              },
+            }}
+          />
+        </div>
       )}
     </div>
   )

@@ -32,7 +32,7 @@ function bucket(scrobbles: Scrobble[], gran: Granularity): Map<string, number> {
   return map
 }
 
-export function ScrobblesTimeline({ scrobbles }: VizProps) {
+export function ScrobblesTimeline({ scrobbles, fill }: VizProps) {
   const [gran, setGran] = useState<Granularity>('month')
   const [cumulative, setCumulative] = useState(false)
   const [showMA, setShowMA] = useState(false)
@@ -89,9 +89,9 @@ export function ScrobblesTimeline({ scrobbles }: VizProps) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+    <div className={fill ? 'h-full flex flex-col gap-3 min-h-0' : 'bg-white rounded-xl border border-gray-200 p-5 space-y-4'}>
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h2 className="font-semibold text-gray-800">Scrobbles Over Time</h2>
+        {!fill && <h2 className="font-semibold text-gray-800">Scrobbles Over Time</h2>}
         <div className="flex gap-1 flex-wrap">
           {(['day', 'week', 'month'] as Granularity[]).map(g => (
             <button
@@ -135,17 +135,20 @@ export function ScrobblesTimeline({ scrobbles }: VizProps) {
           ))}
         </div>
       </div>
-      <Line
-        data={chartData}
-        options={{
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { grid: { display: false }, ticks: { maxTicksLimit: 12 } },
-            y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
-          },
-        }}
-      />
+      <div className={fill ? 'flex-1 min-h-0' : ''}>
+        <Line
+          data={chartData}
+          options={{
+            responsive: true,
+            maintainAspectRatio: !fill,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { display: false }, ticks: { maxTicksLimit: 12 } },
+              y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+            },
+          }}
+        />
+      </div>
     </div>
   )
 }
