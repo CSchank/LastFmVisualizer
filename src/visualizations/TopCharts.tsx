@@ -5,6 +5,7 @@ import { subDays } from 'date-fns'
 import type { VizProps } from './registry'
 import type { Scrobble } from '../db'
 import { splitArtists, buildRawArtistSet } from '../utils/artists'
+import { useEntityDetail } from '../components/EntityDetail'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip)
 
@@ -28,26 +29,29 @@ function filterByPeriod(scrobbles: Scrobble[], period: Period): Scrobble[] {
 
 function topN(scrobbles: Scrobble[], dim: Dimension, n: number, splitCollabs: boolean, raw: Set<string>) {
   const counts = new Map<string, number>()
+  const meta = new Map<string, { artist: string; title?: string }>()
   for (const s of scrobbles) {
     if (dim === 'artist') {
       const artists = splitCollabs ? splitArtists(s.artist, raw) : [s.artist]
       for (const a of artists) {
-        if (a.trim()) counts.set(a, (counts.get(a) ?? 0) + 1)
+        if (a.trim()) { counts.set(a, (counts.get(a) ?? 0) + 1); meta.set(a, { artist: a }) }
       }
     } else {
-      const k = dim === 'album' ? `${s.album} — ${s.artist}` : `${s.track} — ${s.artist}`
-      if (k.trim()) counts.set(k, (counts.get(k) ?? 0) + 1)
+      const title = dim === 'album' ? s.album : s.track
+      const k = `${title} — ${s.artist}`
+      if (k.trim()) { counts.set(k, (counts.get(k) ?? 0) + 1); meta.set(k, { artist: s.artist, title }) }
     }
   }
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, n)
-    .map(([name, count]) => ({ name, count }))
+    .map(([name, count]) => ({ name, count, ...meta.get(name)! }))
 }
 
 export function TopCharts({ scrobbles, splitCollabs, fill }: VizProps) {
   const [period, setPeriod] = useState<Period>('all')
   const [dim, setDim] = useState<Dimension>('artist')
+  const { open } = useEntityDetail()
 
   const raw = useMemo(() => buildRawArtistSet(scrobbles), [scrobbles])
 
@@ -110,6 +114,26 @@ export function TopCharts({ scrobbles, splitCollabs, fill }: VizProps) {
               indexAxis: 'y',
               responsive: true,
               maintainAspectRatio: !fill,
+              // Resolve the clicked row from the bar element, or — when the
+              // click/hover lands on the tick label or empty track to the left
+              // of the bar — from the Y position mapped to the category index.
+              onClick: (e, els, chart) => {
+                let idx = els[0]?.index
+                if (idx === undefined && e.native) {
+                  idx = chart.getElementsAtEventForMode(e.native, 'index', { axis: 'y', intersect: false }, false)[0]?.index
+                }
+                const d = idx !== undefined ? data[idx] : undefined
+                if (!d) return
+                open(d.title !== undefined ? { kind: dim as 'album' | 'track', artist: d.artist, title: d.title } : { kind: 'artist', artist: d.artist })
+              },
+              onHover: (e, els, chart) => {
+                const t = (e.native?.target as HTMLElement | undefined)
+                if (!t) return
+                const near = !els.length && e.native
+                  ? chart.getElementsAtEventForMode(e.native, 'index', { axis: 'y', intersect: false }, false)
+                  : els
+                t.style.cursor = near.length ? 'pointer' : 'default'
+              },
               plugins: { legend: { display: false } },
               scales: {
                 x: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },

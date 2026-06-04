@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { getArtistImage, setArtistImageManual } from '../api/artistImages'
+import { getArtistImage } from '../api/artistImages'
 import { getDb } from '../db'
 import { UserAvatarIcon } from './icons/CommonIcons'
+import { useEntityDetail } from './EntityDetail'
 
 function getApiKey(): string { return localStorage.getItem('lastfm_api_key') ?? '' }
 function getUsername(): string { return localStorage.getItem('lastfm_active_account') ?? '' }
@@ -15,8 +16,9 @@ interface Props {
 // Fetches the artist image only once the avatar scrolls into view, so long
 // unpaginated lists don't fire thousands of requests at once. getArtistImage
 // dedups and caches, so repeated artists across rows cost nothing.
-// Click an avatar to paste a manual image URL (e.g. for a not-found artist).
+// Click an avatar to open the artist's detail (where the image can be set).
 export function ArtistAvatar({ artist, sizeClass = 'w-8 h-8', iconClass = 'w-4 h-4' }: Props) {
+  const { open } = useEntityDetail()
   const [url, setUrl] = useState<string | null>(null)
   const [errored, setErrored] = useState(false)
   const ref = useRef<HTMLButtonElement>(null)
@@ -45,21 +47,11 @@ export function ArtistAvatar({ artist, sizeClass = 'w-8 h-8', iconClass = 'w-4 h
     return () => { cancelled = true; observer.disconnect() }
   }, [artist])
 
-  const handleClick = async () => {
-    const username = getUsername()
-    if (!username) return
-    const input = window.prompt(`Image URL for ${artist} (leave blank to clear):`, url ?? '')
-    if (input === null) return
-    await setArtistImageManual(getDb(username), artist, input)
-    setErrored(false)
-    setUrl(input.trim() || null)
-  }
-
   return (
     <button
       ref={ref}
-      onClick={handleClick}
-      title={`Set image for ${artist}`}
+      onClick={() => open({ kind: 'artist', artist })}
+      title={`View ${artist}`}
       className={`${sizeClass} rounded-full overflow-hidden bg-gray-100 shrink-0 flex items-center justify-center hover:ring-2 hover:ring-red-300 transition-shadow`}
     >
       {url && !errored ? (

@@ -10,6 +10,7 @@ import { SetupFlow } from './components/SetupFlow'
 import { Header } from './components/Header'
 import { Sidebar } from './components/Sidebar'
 import { SettingsModal } from './components/SettingsModal'
+import { EntityDetailProvider } from './components/EntityDetail'
 import { VISUALIZATIONS } from './visualizations/registry'
 
 const ALL_VIEW_IDS = VISUALIZATIONS.map(v => v.id)
@@ -70,6 +71,7 @@ export default function App() {
   const ActiveComponent = activeDefinition.component
 
   return (
+    <EntityDetailProvider scrobbles={scrobbles} splitCollabs={splitCollabs}>
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header
         apiKey={apiKey}
@@ -154,5 +156,6 @@ export default function App() {
         </main>
       </div>
     </div>
+    </EntityDetailProvider>
   )
 }

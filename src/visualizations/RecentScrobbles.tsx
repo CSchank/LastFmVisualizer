@@ -4,6 +4,7 @@ import type { VizProps } from './registry'
 import { getArtistImage } from '../api/artistImages'
 import { getDb } from '../db'
 import { MusicNoteIcon, UserAvatarIcon } from '../components/icons/CommonIcons'
+import { useEntityDetail } from '../components/EntityDetail'
 
 const PAGE_SIZE = 100
 
@@ -25,6 +26,7 @@ function Photo({ url, alt, round }: { url?: string | null; alt: string; round?: 
 }
 
 export function RecentScrobbles({ scrobbles }: VizProps) {
+  const { open } = useEntityDetail()
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(0)
   const [artistImages, setArtistImages] = useState<Map<string, string | null>>(new Map())
@@ -110,14 +112,23 @@ export function RecentScrobbles({ scrobbles }: VizProps) {
                 <td className="py-1.5 pl-4 pr-1">
                   <Photo url={s.imageUrl} alt={s.album || s.track} />
                 </td>
-                <td className="py-1.5 px-2 font-medium text-gray-800 max-w-xs truncate">{s.track}</td>
+                <td className="py-1.5 px-2 font-medium text-gray-800 max-w-xs">
+                  <button onClick={() => open({ kind: 'track', artist: s.artist, title: s.track })}
+                    className="truncate block max-w-full text-left hover:text-red-600 hover:underline">{s.track}</button>
+                </td>
                 <td className="py-1.5 px-2 text-gray-600">
                   <div className="flex items-center gap-2 max-w-xs">
                     <Photo url={artistImages.get(s.artist)} alt={s.artist} round />
-                    <span className="truncate">{s.artist}</span>
+                    <button onClick={() => open({ kind: 'artist', artist: s.artist })}
+                      className="truncate text-left hover:text-red-600 hover:underline">{s.artist}</button>
                   </div>
                 </td>
-                <td className="py-1.5 px-2 text-gray-500 max-w-xs truncate hidden md:table-cell">{s.album || '—'}</td>
+                <td className="py-1.5 px-2 text-gray-500 max-w-xs hidden md:table-cell">
+                  {s.album
+                    ? <button onClick={() => open({ kind: 'album', artist: s.artist, title: s.album })}
+                        className="truncate block max-w-full text-left hover:text-red-600 hover:underline">{s.album}</button>
+                    : '—'}
+                </td>
                 <td className="py-1.5 pl-2 pr-4 text-right text-gray-400 whitespace-nowrap">
                   {format(fromUnixTime(s.timestamp), 'MMM d, yyyy HH:mm')}
                 </td>
