@@ -3,6 +3,7 @@ import { differenceInCalendarDays, format, fromUnixTime } from 'date-fns'
 import type { VizProps } from './registry'
 import { splitArtists, buildRawArtistSet } from '../utils/artists'
 import { ArtistAvatar } from '../components/ArtistAvatar'
+import { EntityLink } from '../components/EntityDetail'
 
 interface ArtistPredict {
   artist: string
@@ -95,7 +96,7 @@ export function RelistenPredictor({ scrobbles, splitCollabs }: VizProps) {
                 <td className="py-2 px-2 text-gray-700">
                   <div className="flex items-center gap-2">
                     <ArtistAvatar artist={r.artist} />
-                    <span>{r.artist}</span>
+                    <EntityLink entity={{ kind: 'artist', artist: r.artist }}>{r.artist}</EntityLink>
                   </div>
                 </td>
                 <td className="py-2 px-2 text-right text-gray-700 font-medium">{r.score.toFixed(3)}</td>

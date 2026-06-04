@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { VizProps } from './registry'
+import { EntityLink } from '../components/EntityDetail'
 import { format, fromUnixTime } from 'date-fns'
 import { splitArtists, buildRawArtistSet } from '../utils/artists'
 import { ArtistAvatar } from '../components/ArtistAvatar'
@@ -105,7 +106,7 @@ export function Overview({ scrobbles, splitCollabs }: VizProps) {
               <ArtistAvatar artist={a.name} sizeClass="w-9 h-9" iconClass="w-5 h-5" />
               <div className="flex-1">
                 <div className="flex justify-between mb-1">
-                  <span className="text-sm font-medium text-gray-800">{a.name}</span>
+                  <EntityLink entity={{ kind: 'artist', artist: a.name }} className="text-sm font-medium text-gray-800 truncate">{a.name}</EntityLink>
                   <span className="text-sm text-gray-500">{a.count.toLocaleString()}</span>
                 </div>
                 <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">

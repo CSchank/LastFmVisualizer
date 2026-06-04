@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { format, fromUnixTime } from 'date-fns'
 import type { VizProps } from './registry'
+import { EntityLink } from '../components/EntityDetail'
 import type { Scrobble } from '../db'
 
 type Gap = 15 | 30 | 60 | 120
@@ -193,7 +194,7 @@ export function ListeningSessions({ scrobbles }: VizProps) {
                       {formatDuration(s.end - s.start)}
                     </td>
                     <td className="py-2 px-2 text-gray-600 truncate max-w-xs">
-                      {ta.name}
+                      <EntityLink entity={{ kind: 'artist', artist: ta.name }}>{ta.name}</EntityLink>
                       {ta.n > 1 && (
                         <span className="text-gray-400 ml-1">
                           ({ta.n}/{s.tracks.length})

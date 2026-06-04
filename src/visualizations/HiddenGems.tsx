@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { format, fromUnixTime } from 'date-fns'
 import type { VizProps } from './registry'
+import { EntityLink } from '../components/EntityDetail'
 
 interface TrackStats {
   key: string
@@ -96,8 +97,12 @@ export function HiddenGems({ scrobbles }: VizProps) {
             ) : rows.map((row, i) => (
               <tr key={row.key} className="hover:bg-gray-50">
                 <td className="py-2 px-2 text-gray-400">{i + 1}</td>
-                <td className="py-2 px-2 text-gray-700 max-w-[22rem] truncate" title={row.track}>{row.track}</td>
-                <td className="py-2 px-2 text-gray-600 max-w-[18rem] truncate" title={row.artist}>{row.artist}</td>
+                <td className="py-2 px-2 text-gray-700 max-w-[22rem]" title={row.track}>
+                  <EntityLink entity={{ kind: 'track', artist: row.artist, title: row.track }} className="block max-w-full truncate">{row.track}</EntityLink>
+                </td>
+                <td className="py-2 px-2 text-gray-600 max-w-[18rem]" title={row.artist}>
+                  <EntityLink entity={{ kind: 'artist', artist: row.artist }} className="block max-w-full truncate">{row.artist}</EntityLink>
+                </td>
                 <td className="py-2 px-2 text-right text-gray-600">{row.plays.toLocaleString()}</td>
                 <td className="py-2 px-2 text-right text-gray-600">{row.uniqueDays.toLocaleString()}</td>
                 <td className="py-2 px-2 text-right text-gray-700 font-medium">{row.score.toFixed(3)}</td>

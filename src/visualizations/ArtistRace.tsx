@@ -3,6 +3,7 @@ import { format, fromUnixTime, startOfMonth } from 'date-fns'
 import type { VizProps } from './registry'
 import { splitArtists, buildRawArtistSet } from '../utils/artists'
 import { ArtistAvatar } from '../components/ArtistAvatar'
+import { useEntityDetail } from '../components/EntityDetail'
 
 const TOP_N = 10
 const ROW_H = 48
@@ -65,6 +66,7 @@ function computeFrames(
 }
 
 export function ArtistRace({ scrobbles, splitCollabs }: VizProps) {
+  const { open } = useEntityDetail()
   const raw = useMemo(() => buildRawArtistSet(scrobbles), [scrobbles])
   const { periods, frames } = useMemo(
     () => computeFrames(scrobbles, splitCollabs, raw),
@@ -213,9 +215,13 @@ export function ArtistRace({ scrobbles, splitCollabs }: VizProps) {
                     willChange: 'width',
                   }}
                 >
-                  <span className="text-sm font-semibold text-white whitespace-nowrap truncate drop-shadow">
+                  <button
+                    type="button"
+                    onClick={() => open({ kind: 'artist', artist })}
+                    className="text-sm font-semibold text-white whitespace-nowrap truncate drop-shadow hover:underline"
+                  >
                     {artist}
-                  </span>
+                  </button>
                 </div>
               </div>
               <span className="w-20 text-sm font-medium text-gray-500 text-right shrink-0 tabular-nums">

@@ -3,6 +3,7 @@ import { fromUnixTime } from 'date-fns'
 import type { VizProps } from './registry'
 import { splitArtists, buildRawArtistSet } from '../utils/artists'
 import { ArtistAvatar } from '../components/ArtistAvatar'
+import { EntityLink, entityFromComposite } from '../components/EntityDetail'
 
 type Dimension = 'artist' | 'album' | 'track'
 type SeasonId = 'spring' | 'summer' | 'fall' | 'winter'
@@ -192,7 +193,7 @@ export function SeasonalFavorites({ scrobbles, splitCollabs }: VizProps) {
                   <td className="py-2 px-3 font-medium text-gray-800 max-w-[34rem]" title={row.name}>
                     <div className="flex items-center gap-2">
                       {dimension === 'artist' && <ArtistAvatar artist={row.name} />}
-                      <span className="truncate">{row.name}</span>
+                      <EntityLink entity={entityFromComposite(row.name, dimension)} className="truncate">{row.name}</EntityLink>
                     </div>
                   </td>
                   <td className="py-2 px-3 text-right text-gray-700">{row.seasonPlays.toLocaleString()}</td>

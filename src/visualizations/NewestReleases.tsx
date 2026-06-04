@@ -3,6 +3,7 @@ import { format, fromUnixTime, parseISO } from 'date-fns'
 import type { VizProps } from './registry'
 import { splitArtists, buildRawArtistSet } from '../utils/artists'
 import { ArtistAvatar } from '../components/ArtistAvatar'
+import { EntityLink } from '../components/EntityDetail'
 import {
   fetchNewestReleaseForArtist,
   getCachedNewestRelease,
@@ -262,7 +263,7 @@ export function NewestReleases({ scrobbles, splitCollabs }: VizProps) {
                   <td className="py-2 px-3 font-medium text-gray-800">
                     <div className="flex items-center gap-2">
                       <ArtistAvatar artist={row.artist} />
-                      <span>{row.artist}</span>
+                      <EntityLink entity={{ kind: 'artist', artist: row.artist }}>{row.artist}</EntityLink>
                     </div>
                   </td>
                   <td className="py-2 px-3 text-right text-gray-600">{row.plays.toLocaleString()}</td>

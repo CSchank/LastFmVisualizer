@@ -5,6 +5,7 @@ import { splitArtists, buildRawArtistSet } from '../utils/artists'
 import { getArtistImage } from '../api/artistImages'
 import { getDb } from '../db'
 import { ArtistAvatar } from '../components/ArtistAvatar'
+import { EntityLink, entityFromComposite, type Period } from '../components/EntityDetail'
 import { buildSvg, downloadYearRecapInfographicPng, imageUrlToDataUrl } from '../utils/yearRecapInfographic'
 
 function topN(values: string[], n: number): { name: string; plays: number }[] {
@@ -40,6 +41,11 @@ export function YearInReview({ scrobbles, splitCollabs }: VizProps) {
   }, [scrobbles])
   const [year, setYear] = useState<number | null>(null)
   const selectedYear = year ?? years[0] ?? new Date().getFullYear()
+  const yearPeriod: Period = {
+    from: new Date(selectedYear, 0, 1).getTime() / 1000,
+    to: new Date(selectedYear + 1, 0, 1).getTime() / 1000 - 1,
+    label: String(selectedYear),
+  }
   const [artistImageUrls, setArtistImageUrls] = useState<Map<string, string | null>>(new Map())
   const [isDownloading, setIsDownloading] = useState(false)
   const [exportStatus, setExportStatus] = useState<string | null>(null)
@@ -242,9 +248,9 @@ export function YearInReview({ scrobbles, splitCollabs }: VizProps) {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <TopList title="Top Artists" rows={recap.topArtists.slice(0, 10)} withAvatar />
-            <TopList title="Top Tracks" rows={recap.topTracks.slice(0, 10)} />
-            <TopList title="Top Albums" rows={recap.topAlbums.slice(0, 10)} />
+            <TopList title="Top Artists" rows={recap.topArtists.slice(0, 10)} withAvatar kind="artist" period={yearPeriod} />
+            <TopList title="Top Tracks" rows={recap.topTracks.slice(0, 10)} kind="track" period={yearPeriod} />
+            <TopList title="Top Albums" rows={recap.topAlbums.slice(0, 10)} kind="album" period={yearPeriod} />
           </div>
         </>
       )}
@@ -262,7 +268,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   )
 }
 
-function TopList({ title, rows, withAvatar }: { title: string; rows: { name: string; plays: number }[]; withAvatar?: boolean }) {
+function TopList({ title, rows, withAvatar, kind, period }: { title: string; rows: { name: string; plays: number }[]; withAvatar?: boolean; kind: 'artist' | 'album' | 'track'; period?: Period }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4">
       <h3 className="text-sm font-semibold text-gray-800 mb-2">{title}</h3>
@@ -271,7 +277,7 @@ function TopList({ title, rows, withAvatar }: { title: string; rows: { name: str
           <div key={row.name} className="flex items-center gap-2">
             <span className="w-5 text-xs text-gray-400">{i + 1}</span>
             {withAvatar && <ArtistAvatar artist={row.name} sizeClass="w-7 h-7" iconClass="w-4 h-4" />}
-            <span className="flex-1 text-sm text-gray-700 truncate" title={row.name}>{row.name}</span>
+            <EntityLink entity={entityFromComposite(row.name, kind)} period={period} className="flex-1 text-sm text-gray-700 truncate" title={row.name}>{row.name}</EntityLink>
             <span className="text-xs text-gray-500 tabular-nums">{row.plays.toLocaleString()}</span>
           </div>
         ))}

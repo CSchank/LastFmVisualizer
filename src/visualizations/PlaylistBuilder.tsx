@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { format, fromUnixTime, subDays } from 'date-fns'
 import type { VizProps } from './registry'
+import { EntityLink } from '../components/EntityDetail'
 
 type Preset = 'hidden-gems' | 'overdue-favorites' | 'current-obsessions'
 
@@ -179,8 +180,12 @@ export function PlaylistBuilder({ scrobbles }: VizProps) {
             ) : rows.map((row, i) => (
               <tr key={`${row.track}-${row.artist}`} className="hover:bg-gray-50">
                 <td className="py-2 px-2 text-gray-400">{i + 1}</td>
-                <td className="py-2 px-2 text-gray-700 max-w-[24rem] truncate" title={row.track}>{row.track}</td>
-                <td className="py-2 px-2 text-gray-600 max-w-[18rem] truncate" title={row.artist}>{row.artist}</td>
+                <td className="py-2 px-2 text-gray-700 max-w-[24rem]" title={row.track}>
+                  <EntityLink entity={{ kind: 'track', artist: row.artist, title: row.track }} className="block max-w-full truncate">{row.track}</EntityLink>
+                </td>
+                <td className="py-2 px-2 text-gray-600 max-w-[18rem]" title={row.artist}>
+                  <EntityLink entity={{ kind: 'artist', artist: row.artist }} className="block max-w-full truncate">{row.artist}</EntityLink>
+                </td>
                 <td className="py-2 px-2 text-right text-gray-600">{row.plays.toLocaleString()}</td>
                 <td className="py-2 px-2 text-right text-gray-600">{row.recent90.toLocaleString()}</td>
                 <td className="py-2 px-2 text-right text-gray-700 font-medium">{row.score.toFixed(3)}</td>

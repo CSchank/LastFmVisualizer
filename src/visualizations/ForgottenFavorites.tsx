@@ -3,6 +3,7 @@ import { format, fromUnixTime } from 'date-fns'
 import type { VizProps } from './registry'
 import { splitArtists, buildRawArtistSet } from '../utils/artists'
 import { ArtistAvatar } from '../components/ArtistAvatar'
+import { EntityLink } from '../components/EntityDetail'
 
 interface ArtistStat {
   artist: string
@@ -164,7 +165,7 @@ export function ForgottenFavorites({ scrobbles, splitCollabs }: VizProps) {
                   <td className="py-2 px-2 font-medium text-gray-800 max-w-xs">
                     <div className="flex items-center gap-2">
                       <ArtistAvatar artist={s.artist} />
-                      <span className="truncate">{s.artist}</span>
+                      <EntityLink entity={{ kind: 'artist', artist: s.artist }} className="truncate">{s.artist}</EntityLink>
                     </div>
                   </td>
                   <td className="py-2 px-2 text-gray-700 w-48">
