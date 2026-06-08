@@ -51,6 +51,13 @@ interface Discoveries {
   tracks: Discovery[]
 }
 
+interface SimilarDay {
+  month: number
+  day: number
+  score: number
+  sharedArtist: string | null
+}
+
 function daysInMonth(month: number): number {
   // Use a leap year so February allows 29.
   return new Date(2024, month + 1, 0).getDate()
@@ -205,6 +212,56 @@ export function OnThisDay({ scrobbles }: VizProps) {
     }
   }, [scrobbles, month, clampedDay])
 
+  // Per-calendar-day artist play vectors, built once across all history.
+  const dayVectors = useMemo(() => {
+    const map = new Map<string, { month: number; day: number; artists: Map<string, number> }>()
+    for (const s of scrobbles) {
+      const d = fromUnixTime(s.timestamp)
+      const m = d.getMonth(), day = d.getDate()
+      const key = `${m}-${day}`
+      let v = map.get(key)
+      if (!v) { v = { month: m, day, artists: new Map() }; map.set(key, v) }
+      v.artists.set(s.artist, (v.artists.get(s.artist) ?? 0) + 1)
+    }
+    return map
+  }, [scrobbles])
+
+  const similarDays = useMemo<SimilarDay[]>(() => {
+    const self = dayVectors.get(`${month}-${clampedDay}`)
+    if (!self) return []
+    let selfNorm = 0
+    for (const v of self.artists.values()) selfNorm += v * v
+    selfNorm = Math.sqrt(selfNorm)
+    if (selfNorm === 0) return []
+
+    const result: SimilarDay[] = []
+    for (const [key, vec] of dayVectors) {
+      if (key === `${month}-${clampedDay}`) continue
+      let dot = 0, sharedArtist: string | null = null, bestContrib = 0
+      // Iterate the smaller map for the intersection.
+      const [small, big] = self.artists.size <= vec.artists.size ? [self.artists, vec.artists] : [vec.artists, self.artists]
+      for (const [artist, v] of small) {
+        const w = big.get(artist)
+        if (!w) continue
+        const contrib = v * w
+        dot += contrib
+        if (contrib > bestContrib) { bestContrib = contrib; sharedArtist = artist }
+      }
+      if (dot === 0) continue
+      let norm = 0
+      for (const v of vec.artists.values()) norm += v * v
+      result.push({ month: vec.month, day: vec.day, score: dot / (selfNorm * Math.sqrt(norm)), sharedArtist })
+    }
+    result.sort((a, b) => b.score - a.score)
+    return result.slice(0, 6)
+  }, [dayVectors, month, clampedDay])
+
+  const goToDay = (m: number, d: number) => {
+    setMonth(m)
+    setDay(d)
+    setExpanded(new Set())
+  }
+
   if (scrobbles.length === 0) {
     return <div className="flex items-center justify-center h-64 text-gray-400">No data yet.</div>
   }
@@ -324,6 +381,28 @@ export function OnThisDay({ scrobbles }: VizProps) {
                     expanded={discExpanded.has(c.kind)}
                     onToggle={() => toggleDisc(c.kind)}
                   />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {similarDays.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Similar days</h3>
+              <div className="flex flex-wrap gap-2">
+                {similarDays.map(sd => (
+                  <button
+                    key={`${sd.month}-${sd.day}`}
+                    onClick={() => goToDay(sd.month, sd.day)}
+                    title={sd.sharedArtist ? `Shared listening: ${sd.sharedArtist}` : undefined}
+                    className="group flex items-center gap-2 rounded-full border border-gray-200 pl-3 pr-2 py-1 text-sm hover:border-red-300 hover:bg-red-50 transition-colors"
+                  >
+                    <span className="font-medium text-gray-700 group-hover:text-red-600">{MONTHS[sd.month].slice(0, 3)} {sd.day}</span>
+                    {sd.sharedArtist && <span className="text-xs text-gray-400 truncate max-w-[10rem]">{sd.sharedArtist}</span>}
+                    <span className="text-[11px] tabular-nums text-gray-400 bg-gray-100 group-hover:bg-white rounded-full px-1.5 py-0.5">
+                      {Math.round(sd.score * 100)}%
+                    </span>
+                  </button>
                 ))}
               </div>
             </div>
