@@ -47,6 +47,7 @@ import { RelistenPredictor } from './RelistenPredictor'
 import { HiddenGems } from './HiddenGems'
 import { StreaksMilestones } from './StreaksMilestones'
 import { PlaylistBuilder } from './PlaylistBuilder'
+import { OnThisDay } from './OnThisDay'
 import { Dashboard } from './Dashboard'
 
 export const VISUALIZATIONS: VizDefinition[] = [
@@ -212,6 +213,12 @@ export const VISUALIZATIONS: VizDefinition[] = [
     description: 'Build smart playlist candidates and export as CSV',
     component: PlaylistBuilder,
   },
+  {
+    id: 'on-this-day',
+    label: 'On This Day',
+    description: 'What you listened to on this calendar day in past years',
+    component: OnThisDay,
+  },
 ]
 
 // Per-view widget sizing for the Dashboard grid (12 cols, rowHeight 36).
@@ -253,6 +260,7 @@ export const VIZ_SIZES: Record<string, WidgetSize> = {
   'hidden-gems':        { w: 5, h: 11, minW: 3, minH: 5 },
   'streaks-milestones': { w: 6, h: 13, minW: 3, minH: 10 },
   'playlist-builder':   { w: 5, h: 11, minW: 3, minH: 5 },
+  'on-this-day':        { w: 6, h: 13, minW: 4, minH: 6 },
 }
 
 export function widgetSize(vizId: string): WidgetSize {
