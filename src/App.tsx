@@ -95,6 +95,8 @@ export default function App() {
         apiKey={apiKey}
         onSaveApiKey={saveApiKey}
         backfill={backfill}
+        activeAccount={activeAccount}
+        onSyncComplete={() => setRefreshKey(k => k + 1)}
       />
 
       {/* Mobile nav */}

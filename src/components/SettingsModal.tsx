@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { Settings } from '../hooks/useSettings'
 import type { ArtistImageBackfill } from '../hooks/useArtistImageBackfill'
+import { LastFmApi } from '../api/lastfm'
+import { getDb } from '../db'
+import { resyncRecent, type SyncProgress } from '../sync/sync'
 import { CloseIcon } from './icons/CommonIcons'
 
 interface Props {
@@ -11,6 +14,8 @@ interface Props {
   apiKey: string
   onSaveApiKey: (key: string) => void
   backfill: ArtistImageBackfill
+  activeAccount: string
+  onSyncComplete: () => void
 }
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
@@ -101,7 +106,84 @@ function NotFoundManager({ backfill }: { backfill: ArtistImageBackfill }) {
   )
 }
 
-export function SettingsModal({ open, onClose, settings, onUpdate, apiKey, onSaveApiKey, backfill }: Props) {
+function ResyncSection({
+  apiKey, activeAccount, autoFetchImages, backfill, onSyncComplete,
+}: {
+  apiKey: string
+  activeAccount: string
+  autoFetchImages: boolean
+  backfill: ArtistImageBackfill
+  onSyncComplete: () => void
+}) {
+  const [days, setDays] = useState(14)
+  const [syncing, setSyncing] = useState(false)
+  const [progress, setProgress] = useState<SyncProgress | null>(null)
+
+  const handleResync = async () => {
+    setSyncing(true)
+    setProgress(null)
+    const api = new LastFmApi(apiKey, activeAccount)
+    const db = getDb(activeAccount)
+    let ok = false
+    try {
+      const since = Math.floor(Date.now() / 1000) - days * 86400
+      await resyncRecent(api, db, since, p => setProgress(p))
+      onSyncComplete()
+      ok = true
+    } catch { /* progress already has error */ } finally {
+      setSyncing(false)
+    }
+    if (ok && autoFetchImages) backfill.run(true)
+  }
+
+  const isError = progress?.phase === 'error'
+
+  return (
+    <div className="py-3">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-gray-800">Re-sync recent scrobbles</p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Re-fetch a recent window to pick up edits &amp; deletions made on Last.fm (which keep their original timestamp).
+          </p>
+        </div>
+        <div className="flex gap-1.5 shrink-0">
+          <select
+            value={days}
+            onChange={e => setDays(+e.target.value)}
+            disabled={syncing}
+            title="How far back to re-fetch"
+            className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-red-300"
+          >
+            <option value={7}>7 days</option>
+            <option value={14}>14 days</option>
+            <option value={30}>30 days</option>
+          </select>
+          <button
+            onClick={handleResync}
+            disabled={syncing}
+            className="px-3 py-1.5 text-sm font-medium rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-40 text-gray-700 transition-colors"
+          >
+            {syncing ? 'Re-syncing…' : 'Re-sync'}
+          </button>
+        </div>
+      </div>
+      {syncing && progress && progress.total > 0 && (
+        <div className="mt-2 h-1 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-red-500 rounded-full transition-all"
+            style={{ width: `${Math.min(100, (progress.fetched / progress.total) * 100)}%` }}
+          />
+        </div>
+      )}
+      {progress && !syncing && (
+        <p className={`mt-2 text-xs ${isError ? 'text-red-500' : 'text-gray-500'}`}>{progress.message}</p>
+      )}
+    </div>
+  )
+}
+
+export function SettingsModal({ open, onClose, settings, onUpdate, apiKey, onSaveApiKey, backfill, activeAccount, onSyncComplete }: Props) {
   const [keyDraft, setKeyDraft] = useState(apiKey)
 
   useEffect(() => { if (open) setKeyDraft(apiKey) }, [open, apiKey])
@@ -197,6 +279,14 @@ export function SettingsModal({ open, onClose, settings, onUpdate, apiKey, onSav
             )}
             <NotFoundManager backfill={backfill} />
           </div>
+
+          <ResyncSection
+            apiKey={apiKey}
+            activeAccount={activeAccount}
+            autoFetchImages={settings.autoFetchImages}
+            backfill={backfill}
+            onSyncComplete={onSyncComplete}
+          />
 
           <div className="py-3">
             <p className="text-sm font-medium text-gray-800">Last.fm API key</p>
