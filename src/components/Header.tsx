@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { LastFmApi } from '../api/lastfm'
 import { getDb, exportToJSON, importFromJSON } from '../db'
-import { syncScrobbles, type SyncProgress } from '../sync/sync'
+import { syncScrobbles, resyncRecent, type SyncProgress } from '../sync/sync'
 import type { ArtistImageBackfill } from '../hooks/useArtistImageBackfill'
 import { CheckSolidIcon, ChevronDownIcon, CloseIcon, PlusIcon, SettingsGearIcon } from './icons/CommonIcons'
 
@@ -27,6 +27,7 @@ export function Header({
   const [isSyncing, setIsSyncing] = useState(false)
   const [statusMsg, setStatusMsg] = useState<{ text: string; ok: boolean } | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [resyncDays, setResyncDays] = useState(14)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -56,6 +57,23 @@ export function Header({
       setIsSyncing(false)
     }
     if (synced && autoFetchImages) backfill.run(true)
+  }
+
+  const handleResync = async () => {
+    setIsSyncing(true)
+    setStatusMsg(null)
+    const api = new LastFmApi(apiKey, activeAccount)
+    const db = getDb(activeAccount)
+    let ok = false
+    try {
+      const since = Math.floor(Date.now() / 1000) - resyncDays * 86400
+      await resyncRecent(api, db, since, p => setProgress(p))
+      onSyncComplete()
+      ok = true
+    } catch { /* progress already has error */ } finally {
+      setIsSyncing(false)
+    }
+    if (ok && autoFetchImages) backfill.run(true)
   }
 
   const handleExport = async () => {
@@ -175,6 +193,24 @@ export function Header({
           className="px-3 py-1.5 bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white text-sm font-medium rounded-lg transition-colors">
           {isSyncing ? 'Syncing…' : totalScrobbles === 0 ? 'Sync All' : 'Sync New'}
         </button>
+        <div className="flex items-center gap-1.5">
+          <select
+            value={resyncDays}
+            onChange={e => setResyncDays(+e.target.value)}
+            disabled={isSyncing}
+            title="How far back to re-fetch"
+            className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-red-300"
+          >
+            <option value={7}>7 days</option>
+            <option value={14}>14 days</option>
+            <option value={30}>30 days</option>
+          </select>
+          <button onClick={handleResync} disabled={isSyncing || totalScrobbles === 0}
+            title="Re-fetch recent scrobbles to pick up edits & deletions made on Last.fm"
+            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 disabled:opacity-40 text-gray-700 text-sm font-medium rounded-lg transition-colors">
+            Re-sync
+          </button>
+        </div>
         <button onClick={handleExport} disabled={isSyncing || totalScrobbles === 0}
           className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 disabled:opacity-40 text-gray-700 text-sm font-medium rounded-lg transition-colors">
           Export
