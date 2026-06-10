@@ -3,10 +3,12 @@ import { format, fromUnixTime } from 'date-fns'
 import type { VizProps } from './registry'
 import { splitArtists, buildRawArtistSet } from '../utils/artists'
 import { ArtistAvatar } from '../components/ArtistAvatar'
-import { EntityLink } from '../components/EntityDetail'
+import { EntityLink, entityFromComposite } from '../components/EntityDetail'
 
-interface ArtistStat {
-  artist: string
+type Dimension = 'artist' | 'album' | 'track'
+
+interface EntityStat {
+  name: string
   total: number
   lastPlayed: number
   recentPlays: number
@@ -15,10 +17,17 @@ interface ArtistStat {
   peakYearPlays: number
 }
 
-type SortKey = 'artist' | 'total' | 'lastPlayed' | 'peakYear'
+type SortKey = 'name' | 'total' | 'lastPlayed' | 'peakYear'
 type SortDir = 'asc' | 'desc'
 
+const DIMENSION_LABEL: Record<Dimension, string> = {
+  artist: 'Artist',
+  album: 'Album',
+  track: 'Track',
+}
+
 export function ForgottenFavorites({ scrobbles, splitCollabs }: VizProps) {
+  const [dimension, setDimension] = useState<Dimension>('artist')
   const [minPlays, setMinPlays] = useState(20)
   const [recentMonths, setRecentMonths] = useState(6)
   const [sortKey, setSortKey] = useState<SortKey>('total')
@@ -29,7 +38,7 @@ export function ForgottenFavorites({ scrobbles, splitCollabs }: VizProps) {
       setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     } else {
       setSortKey(key)
-      setSortDir(key === 'artist' ? 'asc' : 'desc')
+      setSortDir(key === 'name' ? 'asc' : 'desc')
     }
   }
 
@@ -47,14 +56,17 @@ export function ForgottenFavorites({ scrobbles, splitCollabs }: VizProps) {
     const cutoff = now - recentMonths * 30 * 86400
 
     for (const s of scrobbles) {
-      const artists = splitCollabs ? splitArtists(s.artist, raw) : [s.artist]
+      const names = dimension === 'artist'
+        ? (splitCollabs ? splitArtists(s.artist, raw) : [s.artist])
+        : [dimension === 'album' ? `${s.album} — ${s.artist}` : `${s.track} — ${s.artist}`]
       const year = fromUnixTime(s.timestamp).getFullYear()
-      for (const a of artists) {
-        if (!a) continue
-        let b = map.get(a)
+      for (const nameRaw of names) {
+        const name = nameRaw?.trim()
+        if (!name) continue
+        let b = map.get(name)
         if (!b) {
           b = { total: 0, lastPlayed: 0, recentPlays: 0, perYear: new Map() }
-          map.set(a, b)
+          map.set(name, b)
         }
         b.total++
         if (s.timestamp > b.lastPlayed) b.lastPlayed = s.timestamp
@@ -63,13 +75,13 @@ export function ForgottenFavorites({ scrobbles, splitCollabs }: VizProps) {
       }
     }
 
-    const result: ArtistStat[] = []
-    for (const [artist, b] of map) {
+    const result: EntityStat[] = []
+    for (const [name, b] of map) {
       if (b.total < minPlays) continue
       if (b.recentPlays > 0) continue
       const peak = [...b.perYear.entries()].sort((a, c) => c[1] - a[1])[0]
       result.push({
-        artist,
+        name,
         total: b.total,
         lastPlayed: b.lastPlayed,
         recentPlays: b.recentPlays,
@@ -82,11 +94,7 @@ export function ForgottenFavorites({ scrobbles, splitCollabs }: VizProps) {
     // Sort by total plays descending — these are your heaviest plays you've abandoned
     result.sort((a, b) => b.total - a.total)
     return result
-  }, [scrobbles, splitCollabs, raw, minPlays, recentMonths])
-
-  if (scrobbles.length === 0) {
-    return <div className="flex items-center justify-center h-64 text-gray-400">No data yet.</div>
-  }
+  }, [scrobbles, splitCollabs, raw, minPlays, recentMonths, dimension])
 
   // The "who's forgotten" set is locked by total plays; user sort only rearranges these 50.
   const top50 = stats.slice(0, 50)
@@ -96,7 +104,7 @@ export function ForgottenFavorites({ scrobbles, splitCollabs }: VizProps) {
     const arr = [...top50]
     arr.sort((a, b) => {
       let cmp = 0
-      if (sortKey === 'artist') cmp = a.artist.localeCompare(b.artist)
+      if (sortKey === 'name') cmp = a.name.localeCompare(b.name)
       else if (sortKey === 'total') cmp = a.total - b.total
       else if (sortKey === 'lastPlayed') cmp = a.lastPlayed - b.lastPlayed
       else cmp = a.peakYear - b.peakYear
@@ -105,16 +113,35 @@ export function ForgottenFavorites({ scrobbles, splitCollabs }: VizProps) {
     return arr
   }, [top50, sortKey, sortDir])
 
+  if (scrobbles.length === 0) {
+    return <div className="flex items-center justify-center h-64 text-gray-400">No data yet.</div>
+  }
+
+  const label = DIMENSION_LABEL[dimension]
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h2 className="font-semibold text-gray-800">Forgotten Favorites</h2>
           <p className="text-xs text-gray-500 mt-0.5">
-            Artists with at least {minPlays} all-time plays who haven't shown up in the last {recentMonths} months.
+            {label}s with at least {minPlays} all-time plays who haven't shown up in the last {recentMonths} months.
           </p>
         </div>
         <div className="flex gap-3 items-center text-sm flex-wrap">
+          <div className="flex gap-1">
+            {(['artist', 'album', 'track'] as Dimension[]).map(d => (
+              <button
+                key={d}
+                onClick={() => setDimension(d)}
+                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                  dimension === d ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {DIMENSION_LABEL[d]}s
+              </button>
+            ))}
+          </div>
           <label className="flex items-center gap-2">
             <span className="text-gray-500">Min plays</span>
             <input
@@ -152,7 +179,7 @@ export function ForgottenFavorites({ scrobbles, splitCollabs }: VizProps) {
             <thead className="border-b border-gray-200">
               <tr className="text-gray-500">
                 <th className="text-left py-2 px-2 font-medium w-8">#</th>
-                <SortableTh label="Artist" k="artist" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
+                <SortableTh label={label} k="name" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
                 <SortableTh label="Plays" k="total" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
                 <SortableTh label="Last played" k="lastPlayed" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
                 <SortableTh label="Peak" k="peakYear" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
@@ -160,12 +187,12 @@ export function ForgottenFavorites({ scrobbles, splitCollabs }: VizProps) {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {top.map((s, i) => (
-                <tr key={s.artist} className="hover:bg-gray-50">
+                <tr key={s.name} className="hover:bg-gray-50">
                   <td className="py-2 px-2 text-gray-400 tabular-nums">{i + 1}</td>
                   <td className="py-2 px-2 font-medium text-gray-800 max-w-xs">
                     <div className="flex items-center gap-2">
-                      <ArtistAvatar artist={s.artist} />
-                      <EntityLink entity={{ kind: 'artist', artist: s.artist }} className="truncate">{s.artist}</EntityLink>
+                      {dimension === 'artist' && <ArtistAvatar artist={s.name} />}
+                      <EntityLink entity={entityFromComposite(s.name, dimension)} className="truncate">{s.name}</EntityLink>
                     </div>
                   </td>
                   <td className="py-2 px-2 text-gray-700 w-48">

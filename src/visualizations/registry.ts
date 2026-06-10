@@ -114,7 +114,7 @@ export const VISUALIZATIONS: VizDefinition[] = [
   {
     id: 'forgotten',
     label: 'Forgotten Favorites',
-    description: 'Heavily played artists you no longer return to',
+    description: 'Heavily played artists, albums, and tracks you no longer return to',
     component: ForgottenFavorites,
   },
   {
